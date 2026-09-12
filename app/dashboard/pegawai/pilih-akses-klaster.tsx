@@ -14,8 +14,20 @@ type BarisAkses = {
   level_akses: "layanan" | "penuh";
 };
 
-export default function PilihAksesKlaster({ daftarKlaster }: { daftarKlaster: Klaster[] }) {
-  const [baris, setBaris] = useState<BarisAkses[]>([]);
+export default function PilihAksesKlaster({
+  daftarKlaster,
+  aksesAwal = [],
+}: {
+  daftarKlaster: Klaster[];
+  aksesAwal?: { klaster_id: string; level_akses: "layanan" | "penuh" }[];
+}) {
+  const [baris, setBaris] = useState<BarisAkses[]>(() =>
+    aksesAwal.map((a) => ({
+      idBaris: crypto.randomUUID(),
+      klaster_id: a.klaster_id,
+      level_akses: a.level_akses,
+    }))
+  );
 
   function tambahBaris() {
     setBaris((sebelum) => [

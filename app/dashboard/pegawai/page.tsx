@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import FormTambahPegawai from "./form-tambah";
 import ToggleStatus from "./toggle-status";
@@ -30,12 +31,17 @@ export default async function HalamanPegawai() {
   const supabase = createClient();
   const { data: daftarPegawai } = await supabase
     .from("pegawai")
-    .select("*")
+    .select("*, lokasi:lokasi_id (nama)")
     .order("nama_lengkap", { ascending: true });
 
   const { data: daftarKlaster } = await supabase
     .from("klaster")
     .select("id, nama, kelompok")
+    .order("urutan", { ascending: true });
+
+  const { data: daftarLokasi } = await supabase
+    .from("lokasi")
+    .select("id, nama")
     .order("urutan", { ascending: true });
 
   const { data: semuaAksesKlaster } = await supabase
@@ -59,7 +65,9 @@ export default async function HalamanPegawai() {
         </p>
       </div>
 
-      {isAdmin && <FormTambahPegawai daftarKlaster={daftarKlaster ?? []} />}
+      {isAdmin && (
+        <FormTambahPegawai daftarKlaster={daftarKlaster ?? []} daftarLokasi={daftarLokasi ?? []} />
+      )}
 
       <div className="overflow-hidden rounded-sm border border-teal-900/10 bg-white">
         <table className="w-full text-left text-sm">
@@ -68,9 +76,11 @@ export default async function HalamanPegawai() {
               <th className="px-5 py-3 font-medium">Nama</th>
               <th className="px-5 py-3 font-medium">Jabatan</th>
               <th className="px-5 py-3 font-medium">Unit kerja</th>
+              <th className="px-5 py-3 font-medium">Lokasi</th>
               <th className="px-5 py-3 font-medium">Hak akses</th>
               <th className="px-5 py-3 font-medium">Akses klaster</th>
               <th className="px-5 py-3 font-medium">Status</th>
+              {isAdmin && <th className="px-5 py-3 font-medium">Aksi</th>}
             </tr>
           </thead>
           <tbody>
@@ -79,6 +89,9 @@ export default async function HalamanPegawai() {
                 <td className="px-5 py-3.5 text-ink">{p.nama_lengkap}</td>
                 <td className="px-5 py-3.5 text-ink/70">{p.jabatan || "—"}</td>
                 <td className="px-5 py-3.5 text-ink/70">{p.unit_kerja || "—"}</td>
+                <td className="px-5 py-3.5 text-ink/70">
+                  {(p.lokasi as unknown as { nama: string } | null)?.nama ?? "—"}
+                </td>
                 <td className="px-5 py-3.5 text-ink/70">
                   {LABEL_PERAN[p.peran] ?? p.peran}
                 </td>
@@ -111,11 +124,21 @@ export default async function HalamanPegawai() {
                     </span>
                   )}
                 </td>
+                {isAdmin && (
+                  <td className="px-5 py-3.5">
+                    <Link
+                      href={`/dashboard/pegawai/${p.id}/edit`}
+                      className="text-xs text-teal-900 underline decoration-teal-900/30 underline-offset-2"
+                    >
+                      Edit
+                    </Link>
+                  </td>
+                )}
               </tr>
             ))}
             {(!daftarPegawai || daftarPegawai.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-5 py-6 text-center text-sm text-ink/45">
+                <td colSpan={isAdmin ? 8 : 7} className="px-5 py-6 text-center text-sm text-ink/45">
                   Belum ada data pegawai.
                 </td>
               </tr>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { tambahPegawaiAction } from "./actions";
-import PilihAksesKlaster from "./pilih-akses-klaster";
+import { ubahPegawaiAction } from "../../actions";
+import PilihAksesKlaster from "../../pilih-akses-klaster";
 
 const PILIHAN_PERAN = [
   { value: "admin", label: "Admin" },
@@ -25,25 +25,40 @@ function TombolSimpan() {
       className="rounded-sm bg-teal-900 px-4 py-2.5 text-sm font-semibold text-sand-50
                  hover:bg-teal-950 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {pending ? "Menyimpan..." : "Buat akun pegawai"}
+      {pending ? "Menyimpan..." : "Simpan perubahan"}
     </button>
   );
 }
 
-export default function FormTambahPegawai({
+type Pegawai = {
+  id: string;
+  nama_lengkap: string;
+  jabatan: string | null;
+  unit_kerja: string | null;
+  peran: string;
+  lokasi_id: string | null;
+};
+
+export default function FormEditPegawai({
+  pegawai,
   daftarKlaster,
   daftarLokasi,
+  aksesAwal,
 }: {
+  pegawai: Pegawai;
   daftarKlaster: { id: string; nama: string; kelompok: string }[];
   daftarLokasi: { id: string; nama: string }[];
+  aksesAwal: { klaster_id: string; level_akses: "layanan" | "penuh" }[];
 }) {
-  const [state, formAction] = useFormState(tambahPegawaiAction, null);
+  const [state, formAction] = useFormState(ubahPegawaiAction, null);
 
   return (
     <form
       action={formAction}
       className="grid grid-cols-1 gap-4 rounded-sm border border-teal-900/10 bg-white p-6 sm:grid-cols-2"
     >
+      <input type="hidden" name="pegawai_id" value={pegawai.id} />
+
       <div className="space-y-1.5">
         <label htmlFor="nama_lengkap" className="text-sm font-medium text-ink">
           Nama lengkap
@@ -52,19 +67,7 @@ export default function FormTambahPegawai({
           id="nama_lengkap"
           name="nama_lengkap"
           required
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <label htmlFor="email" className="text-sm font-medium text-ink">
-          Email login
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
+          defaultValue={pegawai.nama_lengkap}
           className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
         />
       </div>
@@ -76,7 +79,7 @@ export default function FormTambahPegawai({
         <input
           id="jabatan"
           name="jabatan"
-          placeholder="contoh: Dokter Umum"
+          defaultValue={pegawai.jabatan ?? ""}
           className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
         />
       </div>
@@ -88,7 +91,7 @@ export default function FormTambahPegawai({
         <input
           id="unit_kerja"
           name="unit_kerja"
-          placeholder="contoh: Poli Umum"
+          defaultValue={pegawai.unit_kerja ?? ""}
           className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
         />
       </div>
@@ -101,36 +104,15 @@ export default function FormTambahPegawai({
           id="peran"
           name="peran"
           required
-          defaultValue=""
+          defaultValue={pegawai.peran}
           className="w-full rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
         >
-          <option value="" disabled>
-            Pilih hak akses
-          </option>
           {PILIHAN_PERAN.map((p) => (
             <option key={p.value} value={p.value}>
               {p.label}
             </option>
           ))}
         </select>
-      </div>
-
-      <div className="space-y-1.5">
-        <label htmlFor="kata_sandi_sementara" className="text-sm font-medium text-ink">
-          Kata sandi sementara
-        </label>
-        <input
-          id="kata_sandi_sementara"
-          name="kata_sandi_sementara"
-          type="text"
-          minLength={8}
-          required
-          placeholder="Minimal 8 karakter"
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
-        />
-        <p className="text-xs text-ink/45">
-          Sampaikan ke pegawai secara langsung, minta diganti saat login pertama.
-        </p>
       </div>
 
       <div className="space-y-1.5 sm:col-span-2">
@@ -140,7 +122,7 @@ export default function FormTambahPegawai({
         <select
           id="lokasi_id"
           name="lokasi_id"
-          defaultValue=""
+          defaultValue={pegawai.lokasi_id ?? ""}
           className="w-full max-w-xs rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
         >
           <option value="">Belum ditentukan</option>
@@ -153,7 +135,7 @@ export default function FormTambahPegawai({
       </div>
 
       <div className="sm:col-span-2">
-        <PilihAksesKlaster daftarKlaster={daftarKlaster} />
+        <PilihAksesKlaster daftarKlaster={daftarKlaster} aksesAwal={aksesAwal} />
       </div>
 
       <div className="sm:col-span-2">

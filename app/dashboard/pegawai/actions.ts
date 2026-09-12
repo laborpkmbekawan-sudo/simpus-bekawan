@@ -32,6 +32,7 @@ export async function tambahPegawaiAction(
   const jabatan = String(formData.get("jabatan") ?? "").trim();
   const unitKerja = String(formData.get("unit_kerja") ?? "").trim();
   const peran = String(formData.get("peran") ?? "");
+  const lokasiId = String(formData.get("lokasi_id") ?? "").trim();
   const kataSandiSementara = String(formData.get("kata_sandi_sementara") ?? "");
   const aksesKlasterMentah = String(formData.get("akses_klaster") ?? "[]");
 
@@ -77,6 +78,7 @@ export async function tambahPegawaiAction(
     jabatan: jabatan || null,
     unit_kerja: unitKerja || null,
     peran,
+    lokasi_id: lokasiId || null,
   });
 
   if (errorPegawai) {
@@ -128,4 +130,89 @@ export async function ubahStatusAktifAction(pegawaiId: string, statusBaru: boole
     .eq("id", pegawaiId);
 
   revalidatePath("/dashboard/pegawai");
+}
+
+export async function ubahPegawaiAction(
+  _sebelum: { pesan: string; sukses: boolean } | null,
+  formData: FormData
+): Promise<{ pesan: string; sukses: boolean }> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || pemanggil.peran !== "admin") {
+    return { pesan: "Hanya admin yang boleh mengubah data pegawai.", sukses: false };
+  }
+
+  const pegawaiId = String(formData.get("pegawai_id") ?? "");
+  const namaLengkap = String(formData.get("nama_lengkap") ?? "").trim();
+  const jabatan = String(formData.get("jabatan") ?? "").trim();
+  const unitKerja = String(formData.get("unit_kerja") ?? "").trim();
+  const peran = String(formData.get("peran") ?? "");
+  const lokasiId = String(formData.get("lokasi_id") ?? "").trim();
+  const aksesKlasterMentah = String(formData.get("akses_klaster") ?? "[]");
+
+  if (!pegawaiId || !namaLengkap || !peran) {
+    return { pesan: "Nama lengkap dan hak akses wajib diisi.", sukses: false };
+  }
+  if (!(PERAN_VALID as readonly string[]).includes(peran)) {
+    return { pesan: "Hak akses tidak valid.", sukses: false };
+  }
+
+  let daftarAksesKlaster: { klaster_id: string; level_akses: "layanan" | "penuh" }[] = [];
+  try {
+    daftarAksesKlaster = JSON.parse(aksesKlasterMentah);
+  } catch {
+    return { pesan: "Data akses klaster tidak valid.", sukses: false };
+  }
+
+  const supabase = createClient();
+
+  const { error: errorUpdate } = await supabase
+    .from("pegawai")
+    .update({
+      nama_lengkap: namaLengkap,
+      jabatan: jabatan || null,
+      unit_kerja: unitKerja || null,
+      peran,
+      lokasi_id: lokasiId || null,
+    })
+    .eq("id", pegawaiId);
+
+  if (errorUpdate) {
+    return { pesan: `Gagal menyimpan perubahan: ${errorUpdate.message}`, sukses: false };
+  }
+
+  // Ganti seluruh akses klaster lama dengan set yang baru dikirim dari form
+  // -- lebih sederhana dan gak rawan bug daripada bandingin baris satu-satu.
+  const { error: errorHapus } = await supabase
+    .from("akses_klaster")
+    .delete()
+    .eq("pegawai_id", pegawaiId);
+
+  if (errorHapus) {
+    return {
+      pesan: `Data utama tersimpan, tapi gagal reset akses klaster lama: ${errorHapus.message}`,
+      sukses: false,
+    };
+  }
+
+  const barisAkses = daftarAksesKlaster
+    .filter((a) => a.klaster_id)
+    .map((a) => ({
+      pegawai_id: pegawaiId,
+      klaster_id: a.klaster_id,
+      level_akses: a.level_akses === "penuh" ? "penuh" : "layanan",
+    }));
+
+  if (barisAkses.length > 0) {
+    const { error: errorInsert } = await supabase.from("akses_klaster").insert(barisAkses);
+    if (errorInsert) {
+      return {
+        pesan: `Data utama tersimpan, tapi gagal simpan akses klaster baru: ${errorInsert.message}`,
+        sukses: false,
+      };
+    }
+  }
+
+  revalidatePath("/dashboard/pegawai");
+  revalidatePath(`/dashboard/pegawai/${pegawaiId}/edit`);
+  return { pesan: `Perubahan untuk ${namaLengkap} berhasil disimpan.`, sukses: true };
 }
