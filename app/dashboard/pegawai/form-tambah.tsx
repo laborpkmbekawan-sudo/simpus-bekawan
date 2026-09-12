@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import { tambahPegawaiAction } from "./actions";
+import PilihAksesKlaster from "./pilih-akses-klaster";
 
 const PILIHAN_PERAN = [
   { value: "admin", label: "Admin" },
@@ -29,7 +30,11 @@ function TombolSimpan() {
   );
 }
 
-export default function FormTambahPegawai() {
+export default function FormTambahPegawai({
+  daftarKlaster,
+}: {
+  daftarKlaster: { id: string; nama: string; kelompok: string }[];
+}) {
   const [state, formAction] = useFormState(tambahPegawaiAction, null);
 
   return (
@@ -124,6 +129,10 @@ export default function FormTambahPegawai() {
         <p className="text-xs text-ink/45">
           Sampaikan ke pegawai secara langsung, minta diganti saat login pertama.
         </p>
+      </div>
+
+      <div className="sm:col-span-2">
+        <PilihAksesKlaster daftarKlaster={daftarKlaster} />
       </div>
 
       <div className="sm:col-span-2">

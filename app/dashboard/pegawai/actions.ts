@@ -33,6 +33,7 @@ export async function tambahPegawaiAction(
   const unitKerja = String(formData.get("unit_kerja") ?? "").trim();
   const peran = String(formData.get("peran") ?? "");
   const kataSandiSementara = String(formData.get("kata_sandi_sementara") ?? "");
+  const aksesKlasterMentah = String(formData.get("akses_klaster") ?? "[]");
 
   if (!email || !namaLengkap || !peran) {
     return { pesan: "Email, nama lengkap, dan hak akses wajib diisi.", sukses: false };
@@ -42,6 +43,13 @@ export async function tambahPegawaiAction(
   }
   if (kataSandiSementara.length < 8) {
     return { pesan: "Kata sandi sementara minimal 8 karakter.", sukses: false };
+  }
+
+  let daftarAksesKlaster: { klaster_id: string; level_akses: "layanan" | "penuh" }[] = [];
+  try {
+    daftarAksesKlaster = JSON.parse(aksesKlasterMentah);
+  } catch {
+    return { pesan: "Data akses klaster tidak valid.", sukses: false };
   }
 
   const admin = createAdminClient();
@@ -76,6 +84,31 @@ export async function tambahPegawaiAction(
     // ada akun login "hantu" tanpa data pegawai.
     await admin.auth.admin.deleteUser(userBaru.user.id);
     return { pesan: `Gagal menyimpan data pegawai: ${errorPegawai.message}`, sukses: false };
+  }
+
+  // 3) Simpan akses klaster (boleh lebih dari satu baris, tiap baris
+  //    klaster + level akses beda-beda).
+  if (daftarAksesKlaster.length > 0) {
+    const barisAkses = daftarAksesKlaster
+      .filter((a) => a.klaster_id)
+      .map((a) => ({
+        pegawai_id: userBaru.user.id,
+        klaster_id: a.klaster_id,
+        level_akses: a.level_akses === "penuh" ? "penuh" : "layanan",
+      }));
+
+    if (barisAkses.length > 0) {
+      const { error: errorAkses } = await supabase.from("akses_klaster").insert(barisAkses);
+      if (errorAkses) {
+        // Pegawai dan akun login tetap dibuat, tapi kasih tau akses klaster
+        // gagal disimpan supaya admin bisa tambah manual lewat halaman edit.
+        revalidatePath("/dashboard/pegawai");
+        return {
+          pesan: `Akun ${namaLengkap} dibuat, tapi akses klaster gagal disimpan: ${errorAkses.message}`,
+          sukses: false,
+        };
+      }
+    }
   }
 
   revalidatePath("/dashboard/pegawai");
