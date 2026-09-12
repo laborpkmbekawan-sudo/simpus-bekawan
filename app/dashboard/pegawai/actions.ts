@@ -8,11 +8,15 @@ const PERAN_VALID = [
   "admin",
   "kapus",
   "bendahara_bok",
+  "manajemen",
   "dokter",
   "perawat",
   "bidan",
   "farmasi",
   "laboratorium",
+  "tenaga_gizi",
+  "kesling",
+  "promkes",
   "loket_rm_kasir",
 ] as const;
 

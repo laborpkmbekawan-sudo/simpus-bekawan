@@ -7,11 +7,15 @@ const LABEL_PERAN: Record<string, string> = {
   admin: "Admin",
   kapus: "Kepala Puskesmas",
   bendahara_bok: "Bendahara BOK",
+  manajemen: "Manajemen",
   dokter: "Dokter",
   perawat: "Perawat",
   bidan: "Bidan",
   farmasi: "Farmasi",
   laboratorium: "Laboratorium",
+  tenaga_gizi: "Tenaga Gizi",
+  kesling: "Kesehatan Lingkungan",
+  promkes: "Promosi Kesehatan",
   loket_rm_kasir: "Loket / RM / Kasir",
 };
 

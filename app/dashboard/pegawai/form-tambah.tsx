@@ -9,11 +9,15 @@ const PILIHAN_PERAN = [
   { value: "admin", label: "Admin" },
   { value: "kapus", label: "Kepala Puskesmas" },
   { value: "bendahara_bok", label: "Bendahara BOK" },
+  { value: "manajemen", label: "Manajemen (Klaster 1)" },
   { value: "dokter", label: "Dokter" },
   { value: "perawat", label: "Perawat" },
   { value: "bidan", label: "Bidan" },
   { value: "farmasi", label: "Farmasi" },
   { value: "laboratorium", label: "Laboratorium" },
+  { value: "tenaga_gizi", label: "Tenaga Gizi" },
+  { value: "kesling", label: "Kesehatan Lingkungan" },
+  { value: "promkes", label: "Promosi Kesehatan" },
   { value: "loket_rm_kasir", label: "Loket / Rekam Medis / Kasir" },
 ];
 
