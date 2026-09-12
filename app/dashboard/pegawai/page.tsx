@@ -9,6 +9,7 @@ const LABEL_PERAN: Record<string, string> = {
   bendahara_bok: "Bendahara BOK",
   manajemen: "Manajemen",
   dokter: "Dokter",
+  dokter_gigi: "Dokter Gigi",
   perawat: "Perawat",
   bidan: "Bidan",
   farmasi: "Farmasi",

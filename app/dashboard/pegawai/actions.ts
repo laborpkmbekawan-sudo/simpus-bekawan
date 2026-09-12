@@ -10,6 +10,7 @@ const PERAN_VALID = [
   "bendahara_bok",
   "manajemen",
   "dokter",
+  "dokter_gigi",
   "perawat",
   "bidan",
   "farmasi",

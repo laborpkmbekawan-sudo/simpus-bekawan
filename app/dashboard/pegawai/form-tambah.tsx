@@ -11,6 +11,7 @@ const PILIHAN_PERAN = [
   { value: "bendahara_bok", label: "Bendahara BOK" },
   { value: "manajemen", label: "Manajemen (Klaster 1)" },
   { value: "dokter", label: "Dokter" },
+  { value: "dokter_gigi", label: "Dokter Gigi" },
   { value: "perawat", label: "Perawat" },
   { value: "bidan", label: "Bidan" },
   { value: "farmasi", label: "Farmasi" },
