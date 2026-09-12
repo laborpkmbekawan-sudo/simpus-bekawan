@@ -44,7 +44,7 @@ export default function TabelPegawai({
           value={kataKunci}
           onChange={(e) => setKataKunci(e.target.value)}
           placeholder="Cari nama, jabatan, unit, lokasi, atau hak akses..."
-          className="w-full rounded-sm border border-teal-900/20 bg-white px-3.5 py-2 text-sm
+          className="w-full rounded-sm border border-teal-700/20 bg-white px-3.5 py-2 text-sm
                      placeholder:text-ink/40 focus:border-teal-700"
         />
       </div>
@@ -53,10 +53,10 @@ export default function TabelPegawai({
         Menampilkan {hasilFilter.length} dari {daftarPegawai.length} pegawai
       </p>
 
-      <div className="overflow-hidden rounded-sm border border-teal-900/10 bg-white">
+      <div className="overflow-hidden rounded-sm border border-teal-700/10 bg-white">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-teal-900/10 text-xs uppercase tracking-wide text-ink/45">
+            <tr className="border-b border-teal-700/10 text-xs uppercase tracking-wide text-ink/45">
               <th className="px-5 py-3 font-medium">Nama</th>
               <th className="px-5 py-3 font-medium">Jabatan</th>
               <th className="px-5 py-3 font-medium">Unit kerja</th>
@@ -69,7 +69,7 @@ export default function TabelPegawai({
           </thead>
           <tbody>
             {hasilFilter.map((p) => (
-              <tr key={p.id} className="border-b border-teal-900/5 last:border-0">
+              <tr key={p.id} className="border-b border-teal-700/5 last:border-0">
                 <td className="px-5 py-3.5 text-ink">{p.nama_lengkap}</td>
                 <td className="px-5 py-3.5 text-ink/70">{p.jabatan || "—"}</td>
                 <td className="px-5 py-3.5 text-ink/70">{p.unit_kerja || "—"}</td>
@@ -82,7 +82,7 @@ export default function TabelPegawai({
                         key={i}
                         className={`rounded-sm px-2 py-0.5 text-xs ${
                           a.level === "penuh"
-                            ? "bg-teal-900/8 text-teal-900"
+                            ? "bg-teal-700/8 text-teal-700"
                             : "bg-ink/5 text-ink/60"
                         }`}
                         title={a.level === "penuh" ? "Penuh (+ laporan)" : "Layanan saja"}
@@ -106,7 +106,7 @@ export default function TabelPegawai({
                   <td className="px-5 py-3.5">
                     <Link
                       href={`/dashboard/pegawai/${p.id}/edit`}
-                      className="text-xs text-teal-900 underline decoration-teal-900/30 underline-offset-2"
+                      className="text-xs text-teal-700 underline decoration-teal-700/30 underline-offset-2"
                     >
                       Edit
                     </Link>

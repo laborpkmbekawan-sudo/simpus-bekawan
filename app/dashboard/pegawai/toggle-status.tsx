@@ -22,8 +22,8 @@ export default function ToggleStatus({
       }
       className={`rounded-sm px-2.5 py-1 text-xs font-medium disabled:opacity-50 ${
         statusAktif
-          ? "bg-teal-900/8 text-teal-900 hover:bg-clay-600/10 hover:text-clay-700"
-          : "bg-ink/5 text-ink/50 hover:bg-teal-900/8 hover:text-teal-900"
+          ? "bg-teal-700/8 text-teal-700 hover:bg-clay-600/10 hover:text-clay-700"
+          : "bg-ink/5 text-ink/50 hover:bg-teal-700/8 hover:text-teal-700"
       }`}
     >
       {statusAktif ? "Aktif · nonaktifkan" : "Nonaktif · aktifkan"}

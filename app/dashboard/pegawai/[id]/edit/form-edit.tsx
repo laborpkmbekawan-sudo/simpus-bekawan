@@ -27,8 +27,8 @@ function TombolSimpan() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm bg-teal-900 px-4 py-2.5 text-sm font-semibold text-sand-50
-                 hover:bg-teal-950 disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-sm bg-teal-700 px-4 py-2.5 text-sm font-semibold text-sand-50
+                 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Menyimpan..." : "Simpan perubahan"}
     </button>
@@ -60,7 +60,7 @@ export default function FormEditPegawai({
   return (
     <form
       action={formAction}
-      className="grid grid-cols-1 gap-4 rounded-sm border border-teal-900/10 bg-white p-6 sm:grid-cols-2"
+      className="grid grid-cols-1 gap-4 rounded-sm border border-teal-700/10 bg-white p-6 sm:grid-cols-2"
     >
       <input type="hidden" name="pegawai_id" value={pegawai.id} />
 
@@ -73,7 +73,7 @@ export default function FormEditPegawai({
           name="nama_lengkap"
           required
           defaultValue={pegawai.nama_lengkap}
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -85,7 +85,7 @@ export default function FormEditPegawai({
           id="jabatan"
           name="jabatan"
           defaultValue={pegawai.jabatan ?? ""}
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -97,7 +97,7 @@ export default function FormEditPegawai({
           id="unit_kerja"
           name="unit_kerja"
           defaultValue={pegawai.unit_kerja ?? ""}
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -110,7 +110,7 @@ export default function FormEditPegawai({
           name="peran"
           required
           defaultValue={pegawai.peran}
-          className="w-full rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 bg-white px-3 py-2 text-sm"
         >
           {PILIHAN_PERAN.map((p) => (
             <option key={p.value} value={p.value}>
@@ -128,7 +128,7 @@ export default function FormEditPegawai({
           id="lokasi_id"
           name="lokasi_id"
           defaultValue={pegawai.lokasi_id ?? ""}
-          className="w-full max-w-xs rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
+          className="w-full max-w-xs rounded-sm border border-teal-700/20 bg-white px-3 py-2 text-sm"
         >
           <option value="">Belum ditentukan</option>
           {daftarLokasi.map((l) => (
@@ -149,7 +149,7 @@ export default function FormEditPegawai({
             role="alert"
             className={`mb-3 rounded-sm px-3.5 py-2.5 text-sm ${
               state.sukses
-                ? "bg-teal-900/8 text-teal-900"
+                ? "bg-teal-700/8 text-teal-700"
                 : "bg-clay-600/10 text-clay-700"
             }`}
           >

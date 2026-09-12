@@ -28,8 +28,8 @@ function TombolSimpan() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm bg-teal-900 px-4 py-2.5 text-sm font-semibold text-sand-50
-                 hover:bg-teal-950 disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-sm bg-teal-700 px-4 py-2.5 text-sm font-semibold text-sand-50
+                 hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Menyimpan..." : "Buat akun pegawai"}
     </button>
@@ -60,7 +60,7 @@ export default function FormTambahPegawai({
     <form
       ref={formRef}
       action={formAction}
-      className="grid grid-cols-1 gap-4 rounded-sm border border-teal-900/10 bg-white p-6 sm:grid-cols-2"
+      className="grid grid-cols-1 gap-4 rounded-sm border border-teal-700/10 bg-white p-6 sm:grid-cols-2"
     >
       <div className="space-y-1.5">
         <label htmlFor="nama_lengkap" className="text-sm font-medium text-ink">
@@ -70,7 +70,7 @@ export default function FormTambahPegawai({
           id="nama_lengkap"
           name="nama_lengkap"
           required
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -83,7 +83,7 @@ export default function FormTambahPegawai({
           name="email"
           type="email"
           required
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -95,7 +95,7 @@ export default function FormTambahPegawai({
           id="jabatan"
           name="jabatan"
           placeholder="contoh: Dokter Umum"
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -107,7 +107,7 @@ export default function FormTambahPegawai({
           id="unit_kerja"
           name="unit_kerja"
           placeholder="contoh: Poli Umum"
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
       </div>
 
@@ -120,7 +120,7 @@ export default function FormTambahPegawai({
           name="peran"
           required
           defaultValue=""
-          className="w-full rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 bg-white px-3 py-2 text-sm"
         >
           <option value="" disabled>
             Pilih hak akses
@@ -144,7 +144,7 @@ export default function FormTambahPegawai({
           minLength={8}
           required
           placeholder="Minimal 8 karakter"
-          className="w-full rounded-sm border border-teal-900/20 px-3 py-2 text-sm"
+          className="w-full rounded-sm border border-teal-700/20 px-3 py-2 text-sm"
         />
         <p className="text-xs text-ink/45">
           Sampaikan ke pegawai secara langsung, minta diganti saat login pertama.
@@ -159,7 +159,7 @@ export default function FormTambahPegawai({
           id="lokasi_id"
           name="lokasi_id"
           defaultValue=""
-          className="w-full max-w-xs rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
+          className="w-full max-w-xs rounded-sm border border-teal-700/20 bg-white px-3 py-2 text-sm"
         >
           <option value="">Belum ditentukan</option>
           {daftarLokasi.map((l) => (
@@ -180,7 +180,7 @@ export default function FormTambahPegawai({
             role="alert"
             className={`mb-3 rounded-sm px-3.5 py-2.5 text-sm ${
               state.sukses
-                ? "bg-teal-900/8 text-teal-900"
+                ? "bg-teal-700/8 text-teal-700"
                 : "bg-clay-600/10 text-clay-700"
             }`}
           >

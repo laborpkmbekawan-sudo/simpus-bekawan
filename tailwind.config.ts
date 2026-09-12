@@ -1,35 +1,38 @@
 import type { Config } from "tailwindcss";
 
 // Token desain SIMPUS UPTD Puskesmas Bekawan.
-// Palet dijauhkan dari default "SaaS hijau mint generik": dasar teal gelap
-// (identitas layanan kesehatan pemerintah) + sand hangat (kertas/arsip),
-// aksen clay untuk status/peringatan, bukan gradient dekoratif.
+// Nilai hex diselaraskan persis dengan referensi desain (navy->teal gradasi
+// sidebar, aksen oranye, kartu rounded besar). Nama token TETAP SAMA seperti
+// sebelumnya (teal-950/900/700/500, sand-50/100, clay-600/700, ink) supaya
+// semua className yang sudah ditulis di komponen lain otomatis ikut berubah
+// tanpa perlu diedit satu-satu.
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
         teal: {
-          950: "#0A2E31",
-          900: "#0F5257",
-          700: "#166B70",
-          500: "#2C8B8F",
+          950: "#0D2942", // navy tua -- dipakai sidebar/panel gelap
+          900: "#123D5B", // navy sedang -- gradasi tengah sidebar
+          700: "#0F766E", // teal utama -- tombol, link, aksen
+          500: "#14B8A6", // teal terang -- gradasi bawah sidebar, hover
         },
         sand: {
-          50: "#F7F4EE",
-          100: "#EFEAE0",
+          50: "#F4F8FB", // bg halaman
+          100: "#E8EEF3", // border/garis halus
         },
         clay: {
-          600: "#C9743A",
-          700: "#A85F2E",
+          600: "#E0793C", // aksen oranye -- warning, highlight aktif
+          700: "#B4592A",
         },
-        ink: "#1C2B2A",
+        ink: "#183B56",
       },
       fontFamily: {
-        sans: ["var(--font-jakarta)", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       borderRadius: {
-        sm: "4px",
+        sm: "10px",
+        card: "18px",
       },
     },
   },

@@ -16,7 +16,7 @@ export default function TombolKeluar() {
   return (
     <button
       onClick={keluar}
-      className="text-sm text-ink/50 underline decoration-ink/20 underline-offset-2 hover:text-clay-700"
+      className="text-sm text-white/60 underline decoration-white/25 underline-offset-2 hover:text-white"
     >
       Keluar
     </button>

@@ -9,8 +9,8 @@ function TombolMasuk() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-sm bg-teal-900 px-4 py-3 text-sm font-semibold text-sand-50
-                 transition-colors hover:bg-teal-950 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-sm bg-teal-700 px-4 py-3 text-sm font-bold text-white
+                 transition-colors hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Memeriksa akun..." : "Masuk"}
     </button>
@@ -33,7 +33,7 @@ export default function FormLogin() {
           autoComplete="username"
           required
           placeholder="nama@puskesmasbekawan.go.id"
-          className="w-full rounded-sm border border-teal-900/20 bg-white px-3.5 py-2.5 text-sm
+          className="w-full rounded-sm border border-teal-700/20 bg-white px-3.5 py-2.5 text-sm
                      text-ink placeholder:text-ink/40 focus:border-teal-700"
         />
       </div>
@@ -49,7 +49,7 @@ export default function FormLogin() {
           autoComplete="current-password"
           required
           placeholder="Masukkan kata sandi"
-          className="w-full rounded-sm border border-teal-900/20 bg-white px-3.5 py-2.5 text-sm
+          className="w-full rounded-sm border border-teal-700/20 bg-white px-3.5 py-2.5 text-sm
                      text-ink placeholder:text-ink/40 focus:border-teal-700"
         />
       </div>

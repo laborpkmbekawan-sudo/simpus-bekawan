@@ -63,7 +63,7 @@ export default function PilihAksesKlaster({
             <select
               value={b.klaster_id}
               onChange={(e) => ubahBaris(b.idBaris, { klaster_id: e.target.value })}
-              className="flex-1 rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
+              className="flex-1 rounded-sm border border-teal-700/20 bg-white px-3 py-2 text-sm"
             >
               {daftarKlaster.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -79,7 +79,7 @@ export default function PilihAksesKlaster({
                   level_akses: e.target.value === "penuh" ? "penuh" : "layanan",
                 })
               }
-              className="w-44 rounded-sm border border-teal-900/20 bg-white px-3 py-2 text-sm"
+              className="w-44 rounded-sm border border-teal-700/20 bg-white px-3 py-2 text-sm"
             >
               <option value="layanan">Layanan saja</option>
               <option value="penuh">Penuh (+ laporan)</option>
@@ -89,7 +89,7 @@ export default function PilihAksesKlaster({
               type="button"
               onClick={() => hapusBaris(b.idBaris)}
               aria-label="Hapus baris klaster ini"
-              className="rounded-sm border border-teal-900/20 px-2.5 py-2 text-sm text-clay-700 hover:bg-clay-600/10"
+              className="rounded-sm border border-teal-700/20 px-2.5 py-2 text-sm text-clay-700 hover:bg-clay-600/10"
             >
               Hapus
             </button>
@@ -101,8 +101,8 @@ export default function PilihAksesKlaster({
         type="button"
         onClick={tambahBaris}
         disabled={daftarKlaster.length === 0}
-        className="mt-2 rounded-sm border border-teal-900/20 px-3 py-1.5 text-xs font-medium text-teal-900
-                   hover:bg-teal-900/5 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-2 rounded-sm border border-teal-700/20 px-3 py-1.5 text-xs font-medium text-teal-700
+                   hover:bg-teal-700/5 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + Tambah klaster lagi
       </button>

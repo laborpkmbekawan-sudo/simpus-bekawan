@@ -46,7 +46,7 @@ export default async function HalamanEditPegawai({
       <div>
         <Link
           href="/dashboard/pegawai"
-          className="text-sm text-teal-900 underline decoration-teal-900/30 underline-offset-2"
+          className="text-sm text-teal-700 underline decoration-teal-700/30 underline-offset-2"
         >
           ← Kembali ke Data Pegawai
         </Link>
