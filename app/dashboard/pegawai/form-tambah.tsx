@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { tambahPegawaiAction } from "./actions";
 import PilihAksesKlaster from "./pilih-akses-klaster";
@@ -38,9 +39,21 @@ export default function FormTambahPegawai({
   daftarLokasi: { id: string; nama: string }[];
 }) {
   const [state, formAction] = useFormState(tambahPegawaiAction, null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [kunciReset, setKunciReset] = useState(0);
+
+  useEffect(() => {
+    if (state?.sukses) {
+      formRef.current?.reset();
+      // Ganti key komponen akses klaster biar state internalnya (baris-baris
+      // yang udah ditambah) ikut kereset ke kosong, bukan cuma input HTML.
+      setKunciReset((k) => k + 1);
+    }
+  }, [state]);
 
   return (
     <form
+      ref={formRef}
       action={formAction}
       className="grid grid-cols-1 gap-4 rounded-sm border border-teal-900/10 bg-white p-6 sm:grid-cols-2"
     >
@@ -153,7 +166,7 @@ export default function FormTambahPegawai({
       </div>
 
       <div className="sm:col-span-2">
-        <PilihAksesKlaster daftarKlaster={daftarKlaster} />
+        <PilihAksesKlaster key={kunciReset} daftarKlaster={daftarKlaster} />
       </div>
 
       <div className="sm:col-span-2">
