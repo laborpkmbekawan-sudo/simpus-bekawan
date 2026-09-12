@@ -20,30 +20,21 @@ export default async function HalamanEditPegawai({
 
   const supabase = createClient();
 
-  const { data: pegawai } = await supabase
-    .from("pegawai")
-    .select("id, nama_lengkap, jabatan, unit_kerja, peran, lokasi_id")
-    .eq("id", params.id)
-    .single();
+  const [{ data: pegawai }, { data: daftarKlaster }, { data: daftarLokasi }, { data: aksesAwalMentah }] =
+    await Promise.all([
+      supabase
+        .from("pegawai")
+        .select("id, nama_lengkap, jabatan, unit_kerja, peran, lokasi_id")
+        .eq("id", params.id)
+        .single(),
+      supabase.from("klaster").select("id, nama, kelompok").order("urutan", { ascending: true }),
+      supabase.from("lokasi").select("id, nama").order("urutan", { ascending: true }),
+      supabase.from("akses_klaster").select("klaster_id, level_akses").eq("pegawai_id", params.id),
+    ]);
 
   if (!pegawai) {
     notFound();
   }
-
-  const { data: daftarKlaster } = await supabase
-    .from("klaster")
-    .select("id, nama, kelompok")
-    .order("urutan", { ascending: true });
-
-  const { data: daftarLokasi } = await supabase
-    .from("lokasi")
-    .select("id, nama")
-    .order("urutan", { ascending: true });
-
-  const { data: aksesAwalMentah } = await supabase
-    .from("akses_klaster")
-    .select("klaster_id, level_akses")
-    .eq("pegawai_id", params.id);
 
   const aksesAwal = (aksesAwalMentah ?? []).map((a) => ({
     klaster_id: a.klaster_id as string,

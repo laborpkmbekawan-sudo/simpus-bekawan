@@ -39,7 +39,7 @@ export default async function LayoutDashboard({
 
   return (
     <div className="grid min-h-screen grid-cols-[240px_1fr] bg-sand-50">
-      <aside className="flex flex-col justify-between border-r border-teal-900/10 bg-white px-5 py-6">
+      <aside className="sticky top-0 flex h-screen flex-col justify-between overflow-y-auto border-r border-teal-900/10 bg-white px-5 py-6">
         <div>
           <div className="px-1.5 text-sm font-semibold text-teal-900">
             SIMPUS Bekawan
@@ -73,7 +73,7 @@ export default async function LayoutDashboard({
         </div>
       </aside>
 
-      <main className="px-10 py-10">{children}</main>
+      <main className="min-w-0 px-10 py-10">{children}</main>
     </div>
   );
 }

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import FormTambahPegawai from "./form-tambah";
-import ToggleStatus from "./toggle-status";
+import TabelPegawai from "./tabel-pegawai";
 
 const LABEL_PERAN: Record<string, string> = {
   admin: "Admin",
@@ -34,24 +33,19 @@ export default async function HalamanPegawai() {
   }
 
   const supabase = createClient();
-  const { data: daftarPegawai } = await supabase
-    .from("pegawai")
-    .select("*, lokasi:lokasi_id (nama)")
-    .order("nama_lengkap", { ascending: true });
 
-  const { data: daftarKlaster } = await supabase
-    .from("klaster")
-    .select("id, nama, kelompok")
-    .order("urutan", { ascending: true });
-
-  const { data: daftarLokasi } = await supabase
-    .from("lokasi")
-    .select("id, nama")
-    .order("urutan", { ascending: true });
-
-  const { data: semuaAksesKlaster } = await supabase
-    .from("akses_klaster")
-    .select("pegawai_id, level_akses, klaster:klaster_id (nama)");
+  // Jalankan semua query sekaligus (paralel), bukan satu-satu berurutan --
+  // ini yang bikin halaman kerasa lebih cepat dibuka.
+  const [{ data: daftarPegawaiMentah }, { data: daftarKlaster }, { data: daftarLokasi }, { data: semuaAksesKlaster }] =
+    await Promise.all([
+      supabase
+        .from("pegawai")
+        .select("*, lokasi:lokasi_id (nama)")
+        .order("nama_lengkap", { ascending: true }),
+      supabase.from("klaster").select("id, nama, kelompok").order("urutan", { ascending: true }),
+      supabase.from("lokasi").select("id, nama").order("urutan", { ascending: true }),
+      supabase.from("akses_klaster").select("pegawai_id, level_akses, klaster:klaster_id (nama)"),
+    ]);
 
   const aksesPerPegawai = new Map<string, { nama: string; level: string }[]>();
   for (const a of semuaAksesKlaster ?? []) {
@@ -60,6 +54,18 @@ export default async function HalamanPegawai() {
     daftar.push({ nama: namaKlaster, level: a.level_akses });
     aksesPerPegawai.set(a.pegawai_id, daftar);
   }
+
+  const daftarPegawai = (daftarPegawaiMentah ?? []).map((p) => ({
+    id: p.id as string,
+    nama_lengkap: p.nama_lengkap as string,
+    jabatan: p.jabatan as string | null,
+    unit_kerja: p.unit_kerja as string | null,
+    peran: p.peran as string,
+    status_aktif: p.status_aktif as boolean,
+    lokasiNama: (p.lokasi as unknown as { nama: string } | null)?.nama ?? "",
+    peranLabel: LABEL_PERAN[p.peran as string] ?? (p.peran as string),
+    akses: aksesPerPegawai.get(p.id as string) ?? [],
+  }));
 
   return (
     <div className="space-y-8">
@@ -74,83 +80,7 @@ export default async function HalamanPegawai() {
         <FormTambahPegawai daftarKlaster={daftarKlaster ?? []} daftarLokasi={daftarLokasi ?? []} />
       )}
 
-      <div className="overflow-hidden rounded-sm border border-teal-900/10 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-teal-900/10 text-xs uppercase tracking-wide text-ink/45">
-              <th className="px-5 py-3 font-medium">Nama</th>
-              <th className="px-5 py-3 font-medium">Jabatan</th>
-              <th className="px-5 py-3 font-medium">Unit kerja</th>
-              <th className="px-5 py-3 font-medium">Lokasi</th>
-              <th className="px-5 py-3 font-medium">Hak akses</th>
-              <th className="px-5 py-3 font-medium">Akses klaster</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              {isAdmin && <th className="px-5 py-3 font-medium">Aksi</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {daftarPegawai?.map((p) => (
-              <tr key={p.id} className="border-b border-teal-900/5 last:border-0">
-                <td className="px-5 py-3.5 text-ink">{p.nama_lengkap}</td>
-                <td className="px-5 py-3.5 text-ink/70">{p.jabatan || "—"}</td>
-                <td className="px-5 py-3.5 text-ink/70">{p.unit_kerja || "—"}</td>
-                <td className="px-5 py-3.5 text-ink/70">
-                  {(p.lokasi as unknown as { nama: string } | null)?.nama ?? "—"}
-                </td>
-                <td className="px-5 py-3.5 text-ink/70">
-                  {LABEL_PERAN[p.peran] ?? p.peran}
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex flex-wrap gap-1">
-                    {(aksesPerPegawai.get(p.id) ?? []).map((a, i) => (
-                      <span
-                        key={i}
-                        className={`rounded-sm px-2 py-0.5 text-xs ${
-                          a.level === "penuh"
-                            ? "bg-teal-900/8 text-teal-900"
-                            : "bg-ink/5 text-ink/60"
-                        }`}
-                        title={a.level === "penuh" ? "Penuh (+ laporan)" : "Layanan saja"}
-                      >
-                        {a.nama.replace(/^Klaster \d+ - /, "").replace(/^Lintas Klaster - /, "")}
-                      </span>
-                    ))}
-                    {(aksesPerPegawai.get(p.id) ?? []).length === 0 && (
-                      <span className="text-xs text-ink/35">—</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-5 py-3.5">
-                  {isAdmin ? (
-                    <ToggleStatus pegawaiId={p.id} statusAktif={p.status_aktif} />
-                  ) : (
-                    <span className="text-xs text-ink/50">
-                      {p.status_aktif ? "Aktif" : "Nonaktif"}
-                    </span>
-                  )}
-                </td>
-                {isAdmin && (
-                  <td className="px-5 py-3.5">
-                    <Link
-                      href={`/dashboard/pegawai/${p.id}/edit`}
-                      className="text-xs text-teal-900 underline decoration-teal-900/30 underline-offset-2"
-                    >
-                      Edit
-                    </Link>
-                  </td>
-                )}
-              </tr>
-            ))}
-            {(!daftarPegawai || daftarPegawai.length === 0) && (
-              <tr>
-                <td colSpan={isAdmin ? 8 : 7} className="px-5 py-6 text-center text-sm text-ink/45">
-                  Belum ada data pegawai.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TabelPegawai daftarPegawai={daftarPegawai} isAdmin={isAdmin} />
     </div>
   );
 }
