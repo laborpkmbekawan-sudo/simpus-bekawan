@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 type Pasien = {
@@ -113,9 +114,12 @@ export default function TabelPasien({
                 </td>
                 <td className="px-5 py-3.5 text-ink/70">{gabungAlamat(p)}</td>
                 <td className="px-5 py-3.5">
-                  <span className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2">
+                  <Link
+                    href={`/dashboard/pasien/${p.id}/kunjungan`}
+                    className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+                  >
                     Daftar Kunjungan
-                  </span>
+                  </Link>
                 </td>
               </tr>
             ))}
