@@ -146,6 +146,35 @@ export default function FormKunjungan({
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label htmlFor="berat_badan" className="text-sm font-bold text-ink/80">
+            Berat badan (kg)
+          </label>
+          <input
+            id="berat_badan"
+            name="berat_badan"
+            type="number"
+            step="0.1"
+            placeholder="contoh: 58.5"
+            className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="tinggi_badan" className="text-sm font-bold text-ink/80">
+            Tinggi badan (cm)
+          </label>
+          <input
+            id="tinggi_badan"
+            name="tinggi_badan"
+            type="number"
+            step="0.1"
+            placeholder="contoh: 160"
+            className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <label htmlFor="nadi" className="text-sm font-bold text-ink/80">

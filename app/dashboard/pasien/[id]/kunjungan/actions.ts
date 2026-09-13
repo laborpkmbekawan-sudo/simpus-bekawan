@@ -21,6 +21,8 @@ export async function daftarKunjunganAction(
   const nadi = String(formData.get("nadi") ?? "").trim();
   const suhu = String(formData.get("suhu") ?? "").trim();
   const frekuensiNapas = String(formData.get("frekuensi_napas") ?? "").trim();
+  const beratBadan = String(formData.get("berat_badan") ?? "").trim();
+  const tinggiBadan = String(formData.get("tinggi_badan") ?? "").trim();
   const prioritasTriase = String(formData.get("prioritas_triase") ?? "hijau");
 
   if (!pasienId || !klasterTujuanId || !jenisKunjungan) {
@@ -78,6 +80,8 @@ export async function daftarKunjunganAction(
     nadi: nadi ? Number(nadi) : null,
     suhu: suhu ? Number(suhu) : null,
     frekuensi_napas: frekuensiNapas ? Number(frekuensiNapas) : null,
+    berat_badan: beratBadan ? Number(beratBadan) : null,
+    tinggi_badan: tinggiBadan ? Number(tinggiBadan) : null,
     prioritas_triase: prioritasTriase === "kuning" || prioritasTriase === "merah" ? prioritasTriase : "hijau",
     dibuat_oleh: pemanggil.id,
   });
