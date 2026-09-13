@@ -9,8 +9,25 @@ type Pasien = {
   nama_lengkap: string;
   tanggal_lahir: string | null;
   jenis_kelamin: string | null;
-  alamat: string | null;
+  jenis_penjamin: string | null;
+  alamat_jalan: string | null;
+  alamat_desa: string | null;
+  alamat_rt: string | null;
+  alamat_rw: string | null;
+  alamat_kecamatan: string | null;
+  alamat_kabupaten: string | null;
 };
+
+function gabungAlamat(p: Pasien) {
+  const bagian = [
+    p.alamat_jalan,
+    p.alamat_desa,
+    p.alamat_rt && p.alamat_rw ? `RT${p.alamat_rt}/RW${p.alamat_rw}` : null,
+    p.alamat_kecamatan,
+    p.alamat_kabupaten,
+  ].filter(Boolean);
+  return bagian.length > 0 ? bagian.join(", ") : "—";
+}
 
 function hitungUmur(tanggalLahir: string | null) {
   if (!tanggalLahir) return "—";
@@ -37,7 +54,7 @@ export default function TabelPasien({
     const q = kataKunci.trim().toLowerCase();
     if (!q) return daftarPasien;
     return daftarPasien.filter((p) =>
-      [p.no_rm, p.nik ?? "", p.nama_lengkap, p.alamat ?? ""].join(" ").toLowerCase().includes(q)
+      [p.no_rm, p.nik ?? "", p.nama_lengkap, gabungAlamat(p)].join(" ").toLowerCase().includes(q)
     );
   }, [daftarPasien, kataKunci]);
 
@@ -65,6 +82,7 @@ export default function TabelPasien({
               <th className="px-5 py-3 font-medium">NIK</th>
               <th className="px-5 py-3 font-medium">Umur</th>
               <th className="px-5 py-3 font-medium">L/P</th>
+              <th className="px-5 py-3 font-medium">Penjamin</th>
               <th className="px-5 py-3 font-medium">Alamat</th>
               <th className="px-5 py-3 font-medium">Aksi</th>
             </tr>
@@ -82,7 +100,18 @@ export default function TabelPasien({
                 <td className="px-5 py-3.5 text-ink/70">{p.nik || "—"}</td>
                 <td className="px-5 py-3.5 text-ink/70">{hitungUmur(p.tanggal_lahir)}</td>
                 <td className="px-5 py-3.5 text-ink/70">{p.jenis_kelamin || "—"}</td>
-                <td className="px-5 py-3.5 text-ink/70">{p.alamat || "—"}</td>
+                <td className="px-5 py-3.5">
+                  <span
+                    className={`rounded-sm px-2 py-0.5 text-xs font-medium ${
+                      p.jenis_penjamin === "bpjs"
+                        ? "bg-teal-700/10 text-teal-700"
+                        : "bg-ink/5 text-ink/60"
+                    }`}
+                  >
+                    {p.jenis_penjamin === "bpjs" ? "BPJS" : "Umum"}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5 text-ink/70">{gabungAlamat(p)}</td>
                 <td className="px-5 py-3.5">
                   <span className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2">
                     Daftar Kunjungan
@@ -92,7 +121,7 @@ export default function TabelPasien({
             ))}
             {hasilFilter.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-6 text-center text-sm text-ink/45">
+                <td colSpan={8} className="px-5 py-6 text-center text-sm text-ink/45">
                   {daftarPasien.length === 0
                     ? "Belum ada data pasien."
                     : "Gak ada pasien yang cocok dengan pencarian."}

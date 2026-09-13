@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { tambahPasienAction } from "../actions";
 
@@ -19,6 +20,7 @@ function TombolSimpan() {
 
 export default function FormTambahPasien() {
   const [state, formAction] = useFormState(tambahPasienAction, null);
+  const [jenisPenjamin, setJenisPenjamin] = useState<"umum" | "bpjs">("umum");
 
   return (
     <form
@@ -79,14 +81,105 @@ export default function FormTambahPasien() {
         </select>
       </div>
 
+      <div className="space-y-1.5">
+        <label htmlFor="jenis_penjamin" className="text-sm font-bold text-ink/80">
+          Penjamin
+        </label>
+        <select
+          id="jenis_penjamin"
+          name="jenis_penjamin"
+          value={jenisPenjamin}
+          onChange={(e) => setJenisPenjamin(e.target.value === "bpjs" ? "bpjs" : "umum")}
+          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+        >
+          <option value="umum">Umum</option>
+          <option value="bpjs">BPJS</option>
+        </select>
+      </div>
+
+      {jenisPenjamin === "bpjs" && (
+        <div className="space-y-1.5">
+          <label htmlFor="no_bpjs" className="text-sm font-bold text-ink/80">
+            No. BPJS
+          </label>
+          <input
+            id="no_bpjs"
+            name="no_bpjs"
+            inputMode="numeric"
+            placeholder="13 digit nomor kartu BPJS"
+            className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          />
+        </div>
+      )}
+
       <div className="space-y-1.5 sm:col-span-2">
-        <label htmlFor="alamat" className="text-sm font-bold text-ink/80">
-          Alamat
+        <label htmlFor="alamat_jalan" className="text-sm font-bold text-ink/80">
+          Jalan
         </label>
         <input
-          id="alamat"
-          name="alamat"
-          placeholder="contoh: Ds. Bekawan RT02/RW01"
+          id="alamat_jalan"
+          name="alamat_jalan"
+          placeholder="contoh: Jl. Merdeka No. 12"
+          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="alamat_desa" className="text-sm font-bold text-ink/80">
+          Desa/Kelurahan
+        </label>
+        <input
+          id="alamat_desa"
+          name="alamat_desa"
+          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label htmlFor="alamat_rt" className="text-sm font-bold text-ink/80">
+            RT
+          </label>
+          <input
+            id="alamat_rt"
+            name="alamat_rt"
+            inputMode="numeric"
+            maxLength={3}
+            className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="alamat_rw" className="text-sm font-bold text-ink/80">
+            RW
+          </label>
+          <input
+            id="alamat_rw"
+            name="alamat_rw"
+            inputMode="numeric"
+            maxLength={3}
+            className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="alamat_kecamatan" className="text-sm font-bold text-ink/80">
+          Kecamatan
+        </label>
+        <input
+          id="alamat_kecamatan"
+          name="alamat_kecamatan"
+          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="alamat_kabupaten" className="text-sm font-bold text-ink/80">
+          Kabupaten/Kota
+        </label>
+        <input
+          id="alamat_kabupaten"
+          name="alamat_kabupaten"
           className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
         />
       </div>
