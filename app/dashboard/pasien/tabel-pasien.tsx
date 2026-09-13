@@ -118,12 +118,20 @@ export default function TabelPasien({
                 </td>
                 <td className="px-5 py-3.5 text-ink/70">{p.no_bpjs || "—"}</td>
                 <td className="px-5 py-3.5">
-                  <Link
-                    href={`/dashboard/pasien/${p.id}/kunjungan`}
-                    className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
-                  >
-                    Daftar Kunjungan
-                  </Link>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={`/dashboard/pasien/${p.id}/kunjungan`}
+                      className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+                    >
+                      Daftar Kunjungan
+                    </Link>
+                    <Link
+                      href={`/dashboard/rekam-medis/${p.id}`}
+                      className="text-xs font-medium text-ink/60 underline decoration-ink/20 underline-offset-2"
+                    >
+                      Rekam Medis
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
