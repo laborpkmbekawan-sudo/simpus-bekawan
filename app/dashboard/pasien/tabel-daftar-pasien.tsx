@@ -120,20 +120,12 @@ export default function TabelDaftarPasien({
                     )}
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="flex flex-col gap-1">
-                      <Link
-                        href={`/dashboard/pasien/${p.id}/kunjungan`}
-                        className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
-                      >
-                        Daftar Kunjungan
-                      </Link>
-                      <Link
-                        href={`/dashboard/rekam-medis/${p.id}`}
-                        className="text-xs font-medium text-ink/60 underline decoration-ink/20 underline-offset-2"
-                      >
-                        Rekam Medis
-                      </Link>
-                    </div>
+                    <Link
+                      href={`/dashboard/pasien/${p.id}/kunjungan`}
+                      className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+                    >
+                      Daftar Kunjungan
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -181,20 +173,12 @@ export default function TabelDaftarPasien({
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="flex flex-col gap-1">
-                      <Link
-                        href={`/dashboard/pasien/${k.pasienId}/kunjungan`}
-                        className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
-                      >
-                        Kunjungan Lain
-                      </Link>
-                      <Link
-                        href={`/dashboard/rekam-medis/${k.pasienId}`}
-                        className="text-xs font-medium text-ink/60 underline decoration-ink/20 underline-offset-2"
-                      >
-                        Rekam Medis
-                      </Link>
-                    </div>
+                    <Link
+                      href={`/dashboard/pasien/${k.pasienId}/kunjungan`}
+                      className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+                    >
+                      Kunjungan Lain
+                    </Link>
                   </td>
                 </tr>
               ))}

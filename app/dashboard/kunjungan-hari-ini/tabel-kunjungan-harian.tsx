@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 const LABEL_STATUS: Record<string, string> = { menunggu: "Menunggu", dipanggil: "Dipanggil", selesai: "Selesai" };
@@ -60,7 +59,6 @@ export default function TabelKunjunganHarian({ daftar }: { daftar: Baris[] }) {
               <th className="px-5 py-3 font-medium">Klaster Tujuan</th>
               <th className="px-5 py-3 font-medium">Jenis</th>
               <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -76,19 +74,11 @@ export default function TabelKunjunganHarian({ daftar }: { daftar: Baris[] }) {
                     {LABEL_STATUS[b.status] ?? b.status}
                   </span>
                 </td>
-                <td className="px-5 py-3.5">
-                  <Link
-                    href={`/dashboard/rekam-medis/${b.pasienId}`}
-                    className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
-                  >
-                    Rekam Medis
-                  </Link>
-                </td>
               </tr>
             ))}
             {hasilFilter.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-6 text-center text-sm text-ink/45">
+                <td colSpan={6} className="px-5 py-6 text-center text-sm text-ink/45">
                   {daftar.length === 0 ? "Belum ada kunjungan di tanggal ini." : "Gak ada yang cocok dengan pencarian."}
                 </td>
               </tr>
