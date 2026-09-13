@@ -1,27 +1,61 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import TabelPasien from "./tabel-pasien";
+import TabelDaftarPasien from "./tabel-daftar-pasien";
+import Link from "next/link";
 
 export default async function HalamanPasien({
   searchParams,
 }: {
-  searchParams: { baru?: string };
+  searchParams: { tanggal?: string };
 }) {
   const supabase = createClient();
-  const { data: daftarPasien } = await supabase
-    .from("pasien")
-    .select(
-      "id, no_rm, nik, nama_lengkap, tanggal_lahir, jenis_kelamin, jenis_penjamin, no_bpjs, alamat_jalan, alamat_desa, alamat_rt, alamat_rw, alamat_kecamatan, alamat_kabupaten"
-    )
-    .order("dibuat_pada", { ascending: false });
+  const tanggal = searchParams.tanggal || new Date().toISOString().slice(0, 10);
+
+  const [{ data: kunjunganMentah }, { data: semuaPasien }] = await Promise.all([
+    supabase
+      .from("kunjungan")
+      .select(
+        "id, nomor_antrian, jenis_kunjungan, status, pasien:pasien_id (id, no_rm, nik, nama_lengkap, jenis_penjamin, no_bpjs), klaster:klaster_tujuan_id (nama, kode_antrian)"
+      )
+      .eq("tanggal", tanggal)
+      .order("nomor_antrian", { ascending: true }),
+    supabase
+      .from("pasien")
+      .select("id, no_rm, nik, nama_lengkap, jenis_penjamin, no_bpjs"),
+  ]);
+
+  const kunjunganHariIni = (kunjunganMentah ?? []).map((k) => {
+    const pasien = k.pasien as unknown as {
+      id: string;
+      no_rm: string;
+      nik: string | null;
+      nama_lengkap: string;
+      jenis_penjamin: string | null;
+      no_bpjs: string | null;
+    } | null;
+    const klaster = k.klaster as unknown as { nama: string; kode_antrian: string | null } | null;
+    return {
+      kunjunganId: k.id,
+      pasienId: pasien?.id ?? "",
+      noRm: pasien?.no_rm ?? "—",
+      nik: pasien?.nik ?? null,
+      namaPasien: pasien?.nama_lengkap ?? "—",
+      jenisPenjamin: pasien?.jenis_penjamin ?? null,
+      noBpjs: pasien?.no_bpjs ?? null,
+      nomorTampil: klaster?.kode_antrian
+        ? `${klaster.kode_antrian}-${String(k.nomor_antrian).padStart(2, "0")}`
+        : String(k.nomor_antrian),
+      namaKlaster: klaster?.nama ?? "—",
+      status: k.status,
+    };
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">Data Pasien</h1>
+          <h1 className="text-2xl font-extrabold text-ink">Daftar Pasien</h1>
           <p className="mt-1.5 text-sm text-ink/60">
-            Cari pasien lama atau daftarkan pasien baru.
+            Menampilkan pasien yang berkunjung di tanggal ini. Ketik di kolom cari buat temukan pasien lain.
           </p>
         </div>
         <Link
@@ -33,7 +67,11 @@ export default async function HalamanPasien({
         </Link>
       </div>
 
-      <TabelPasien daftarPasien={daftarPasien ?? []} idBaruDisorot={searchParams.baru} />
+      <TabelDaftarPasien
+        tanggal={tanggal}
+        kunjunganHariIni={kunjunganHariIni}
+        semuaPasien={semuaPasien ?? []}
+      />
     </div>
   );
 }

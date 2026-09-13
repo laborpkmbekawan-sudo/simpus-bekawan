@@ -34,8 +34,10 @@ export default async function LayoutDashboard({
 
   const menu = [
     { href: "/dashboard", label: "Beranda" },
-    { href: "/dashboard/pasien", label: "Data Pasien" },
+    { href: "/dashboard/pasien", label: "Daftar Pasien" },
+    { href: "/dashboard/kunjungan-hari-ini", label: "Kunjungan Hari Ini" },
     { href: "/dashboard/antrian", label: "Antrian" },
+    { href: "/dashboard/rekam-medis", label: "Rekam Medis" },
     { href: "/dashboard/pegawai", label: "Data Pegawai", peranBoleh: ["admin", "kapus"] },
   ];
 
