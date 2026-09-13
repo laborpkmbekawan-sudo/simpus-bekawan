@@ -11,6 +11,7 @@ type Pasien = {
   tanggal_lahir: string | null;
   jenis_kelamin: string | null;
   jenis_penjamin: string | null;
+  no_bpjs: string | null;
   alamat_jalan: string | null;
   alamat_desa: string | null;
   alamat_rt: string | null;
@@ -55,7 +56,10 @@ export default function TabelPasien({
     const q = kataKunci.trim().toLowerCase();
     if (!q) return daftarPasien;
     return daftarPasien.filter((p) =>
-      [p.no_rm, p.nik ?? "", p.nama_lengkap, gabungAlamat(p)].join(" ").toLowerCase().includes(q)
+      [p.no_rm, p.nik ?? "", p.nama_lengkap, p.no_bpjs ?? "", gabungAlamat(p)]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
     );
   }, [daftarPasien, kataKunci]);
 
@@ -84,7 +88,7 @@ export default function TabelPasien({
               <th className="px-5 py-3 font-medium">Umur</th>
               <th className="px-5 py-3 font-medium">L/P</th>
               <th className="px-5 py-3 font-medium">Penjamin</th>
-              <th className="px-5 py-3 font-medium">Alamat</th>
+              <th className="px-5 py-3 font-medium">No. BPJS</th>
               <th className="px-5 py-3 font-medium">Aksi</th>
             </tr>
           </thead>
@@ -112,7 +116,7 @@ export default function TabelPasien({
                     {p.jenis_penjamin === "bpjs" ? "BPJS" : "Umum"}
                   </span>
                 </td>
-                <td className="px-5 py-3.5 text-ink/70">{gabungAlamat(p)}</td>
+                <td className="px-5 py-3.5 text-ink/70">{p.no_bpjs || "—"}</td>
                 <td className="px-5 py-3.5">
                   <Link
                     href={`/dashboard/pasien/${p.id}/kunjungan`}

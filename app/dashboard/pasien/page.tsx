@@ -11,7 +11,7 @@ export default async function HalamanPasien({
   const { data: daftarPasien } = await supabase
     .from("pasien")
     .select(
-      "id, no_rm, nik, nama_lengkap, tanggal_lahir, jenis_kelamin, jenis_penjamin, alamat_jalan, alamat_desa, alamat_rt, alamat_rw, alamat_kecamatan, alamat_kabupaten"
+      "id, no_rm, nik, nama_lengkap, tanggal_lahir, jenis_kelamin, jenis_penjamin, no_bpjs, alamat_jalan, alamat_desa, alamat_rt, alamat_rw, alamat_kecamatan, alamat_kabupaten"
     )
     .order("dibuat_pada", { ascending: false });
 
