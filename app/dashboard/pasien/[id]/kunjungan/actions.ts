@@ -4,9 +4,9 @@ import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function daftarKunjunganAction(
-  _sebelum: { pesan: string; sukses: boolean; nomorAntrian?: number; namaKlaster?: string } | null,
+  _sebelum: { pesan: string; sukses: boolean; nomorTampil?: string; namaKlaster?: string } | null,
   formData: FormData
-): Promise<{ pesan: string; sukses: boolean; nomorAntrian?: number; namaKlaster?: string }> {
+): Promise<{ pesan: string; sukses: boolean; nomorTampil?: string; namaKlaster?: string }> {
   const pemanggil = await getPegawaiSaya();
   if (!pemanggil) {
     return { pesan: "Sesi login gak ditemukan, coba masuk ulang.", sukses: false };
@@ -42,9 +42,13 @@ export async function daftarKunjunganAction(
 
   const { data: klaster } = await supabase
     .from("klaster")
-    .select("nama")
+    .select("nama, kode_antrian")
     .eq("id", klasterTujuanId)
     .single();
+
+  const nomorTampil = klaster?.kode_antrian
+    ? `${klaster.kode_antrian}-${String(nomorAntrian).padStart(2, "0")}`
+    : String(nomorAntrian);
 
   const { data: kunjunganBaru, error } = await supabase
     .from("kunjungan")
@@ -82,9 +86,9 @@ export async function daftarKunjunganAction(
 
   if (errorSkrining) {
     return {
-      pesan: `Kunjungan tersimpan (No. antrian ${nomorAntrian}), tapi skrining gagal disimpan: ${errorSkrining.message}`,
+      pesan: `Kunjungan tersimpan (No. antrian ${nomorTampil}), tapi skrining gagal disimpan: ${errorSkrining.message}`,
       sukses: true,
-      nomorAntrian,
+      nomorTampil,
       namaKlaster: klaster?.nama ?? "",
     };
   }
@@ -92,7 +96,7 @@ export async function daftarKunjunganAction(
   return {
     pesan: "Kunjungan dan skrining berhasil didaftarkan.",
     sukses: true,
-    nomorAntrian,
+    nomorTampil,
     namaKlaster: klaster?.nama ?? "",
   };
 }

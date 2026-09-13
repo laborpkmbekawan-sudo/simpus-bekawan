@@ -16,7 +16,11 @@ export default async function HalamanDaftarKunjungan({
       .select("id, no_rm, nama_lengkap, tanggal_lahir, jenis_kelamin")
       .eq("id", params.id)
       .single(),
-    supabase.from("klaster").select("id, nama").order("urutan", { ascending: true }),
+    supabase
+      .from("klaster")
+      .select("id, nama")
+      .not("kode_antrian", "is", null)
+      .order("urutan", { ascending: true }),
   ]);
 
   if (!pasien) {

@@ -12,22 +12,24 @@ const WARNA_TRIASE: Record<string, string> = {
 
 type KartuProps = {
   id: string;
-  nomorAntrian: number;
+  nomorTampil: string;
   namaPasien: string;
   noRm: string;
   jenisKunjungan: string;
   status: string;
   triase: string | null;
+  bisaPanggil: boolean;
 };
 
 export default function KartuAntrian({
   id,
-  nomorAntrian,
+  nomorTampil,
   namaPasien,
   noRm,
   jenisKunjungan,
   status,
   triase,
+  bisaPanggil,
 }: KartuProps) {
   const [pending, mulaiTransisi] = useTransition();
 
@@ -50,7 +52,7 @@ export default function KartuAntrian({
     >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-ink/5 text-sm font-bold text-ink">
-          {nomorAntrian}
+          {nomorTampil}
         </div>
         <div>
           <p className="text-sm font-semibold text-ink">{namaPasien}</p>
@@ -67,6 +69,8 @@ export default function KartuAntrian({
 
       {status === "selesai" ? (
         <span className="text-xs font-medium text-ink/40">Selesai</span>
+      ) : !bisaPanggil ? (
+        <span className="text-xs font-medium capitalize text-ink/40">{status}</span>
       ) : (
         <button
           onClick={lanjutkanStatus}

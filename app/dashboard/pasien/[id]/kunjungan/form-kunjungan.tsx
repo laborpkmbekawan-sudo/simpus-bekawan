@@ -38,7 +38,7 @@ export default function FormKunjungan({
     return (
       <div className="rounded-card border border-teal-700/20 bg-teal-500/10 p-8 text-center">
         <p className="text-sm font-medium text-teal-700">Berhasil didaftarkan</p>
-        <p className="mt-2 text-5xl font-extrabold text-ink">{state.nomorAntrian}</p>
+        <p className="mt-2 text-5xl font-extrabold text-ink">{state.nomorTampil}</p>
         <p className="mt-1 text-sm text-ink/60">Nomor antrian menuju {state.namaKlaster}</p>
         {state.pesan?.includes("gagal disimpan") && (
           <p className="mx-auto mt-3 max-w-sm rounded-sm bg-clay-600/10 px-3.5 py-2 text-xs text-clay-700">

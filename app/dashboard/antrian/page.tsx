@@ -14,16 +14,18 @@ export default async function HalamanAntrian() {
     supabase
       .from("kunjungan")
       .select(
-        "id, nomor_antrian, jenis_kunjungan, status, klaster_tujuan_id, pasien:pasien_id (no_rm, nama_lengkap), klaster:klaster_tujuan_id (id, nama), skrining (prioritas_triase)"
+        "id, nomor_antrian, jenis_kunjungan, status, klaster_tujuan_id, pasien:pasien_id (no_rm, nama_lengkap), klaster:klaster_tujuan_id (id, nama, kode_antrian), skrining (prioritas_triase)"
       )
       .eq("tanggal", hariIni)
       .order("nomor_antrian", { ascending: true }),
-    bolehLihatSemua
-      ? Promise.resolve({ data: [] as { klaster_id: string }[] })
-      : supabase.from("akses_klaster").select("klaster_id").eq("pegawai_id", pemanggil.id),
+    // Diambil buat SEMUA peran (termasuk loket) -- dipakai buat nentuin
+    // klaster mana yang boleh dia PANGGIL, terpisah dari klaster mana yang
+    // boleh dia LIHAT.
+    supabase.from("akses_klaster").select("klaster_id").eq("pegawai_id", pemanggil.id),
   ]);
 
   const klasterBolehDilihat = new Set((aksesSaya ?? []).map((a) => a.klaster_id));
+  const klasterBolehAksi = new Set((aksesSaya ?? []).map((a) => a.klaster_id));
 
   const daftarTampil = (kunjunganHariIni ?? []).filter(
     (k) => bolehLihatSemua || klasterBolehDilihat.has(k.klaster_tujuan_id)
@@ -63,18 +65,27 @@ export default async function HalamanAntrian() {
             <div className="space-y-2">
               {grup.daftar.map((k) => {
                 const pasien = k.pasien as unknown as { no_rm: string; nama_lengkap: string } | null;
+                const klasterInfo = k.klaster as unknown as { kode_antrian: string | null } | null;
                 const triase =
                   (k.skrining as unknown as { prioritas_triase: string }[] | null)?.[0]?.prioritas_triase ?? null;
+                const nomorTampil = klasterInfo?.kode_antrian
+                  ? `${klasterInfo.kode_antrian}-${String(k.nomor_antrian).padStart(2, "0")}`
+                  : String(k.nomor_antrian);
+                // Panggil/Selesaikan hanya boleh dilakukan pegawai yang
+                // punya akses ke klaster ini (atau admin) -- bukan otomatis
+                // semua orang yang KEBETULAN bisa lihat daftarnya (mis. loket).
+                const bisaPanggil = pemanggil.peran === "admin" || klasterBolehAksi.has(k.klaster_tujuan_id);
                 return (
                   <KartuAntrian
                     key={k.id}
                     id={k.id}
-                    nomorAntrian={k.nomor_antrian}
+                    nomorTampil={nomorTampil}
                     namaPasien={pasien?.nama_lengkap ?? "—"}
                     noRm={pasien?.no_rm ?? "—"}
                     jenisKunjungan={k.jenis_kunjungan}
                     status={k.status}
                     triase={triase}
+                    bisaPanggil={bisaPanggil}
                   />
                 );
               })}
