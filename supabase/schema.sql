@@ -523,4 +523,13 @@ create policy "kasir_buat_tagihan_item"
 on public.tagihan_item for insert
 to authenticated
 with check (public.peran_saya() in ('admin', 'loket_rm_kasir'));
+
+-- 21. Penjamin dipilih ULANG tiap kunjungan (bukan ngikut default pasien),
+-- soalnya status aktif BPJS pasien bisa berubah tiap bulan. Idempotent,
+-- aman dijalankan ulang.
+alter table public.kunjungan
+  add column if not exists jenis_penjamin text check (jenis_penjamin in ('bpjs', 'umum'));
+
+comment on column public.kunjungan.jenis_penjamin is
+  'Penjamin yang dipilih petugas saat kunjungan ini didaftarkan -- independen dari pasien.jenis_penjamin (default/master), karena status aktif BPJS pasien bisa beda tiap bulan.';
 -- =========================================================

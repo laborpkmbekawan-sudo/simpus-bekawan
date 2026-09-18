@@ -13,7 +13,7 @@ export default async function HalamanDaftarKunjungan({
   const [{ data: pasien }, { data: daftarKlaster }] = await Promise.all([
     supabase
       .from("pasien")
-      .select("id, no_rm, nama_lengkap, tanggal_lahir, jenis_kelamin")
+      .select("id, no_rm, nama_lengkap, tanggal_lahir, jenis_kelamin, jenis_penjamin")
       .eq("id", params.id)
       .single(),
     supabase
@@ -48,7 +48,11 @@ export default async function HalamanDaftarKunjungan({
         </p>
       </div>
 
-      <FormKunjungan pasienId={pasien.id} daftarKlaster={daftarKlaster ?? []} />
+      <FormKunjungan
+        pasienId={pasien.id}
+        daftarKlaster={daftarKlaster ?? []}
+        jenisPenjaminDefault={pasien.jenis_penjamin ?? "umum"}
+      />
     </div>
   );
 }

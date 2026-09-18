@@ -16,7 +16,9 @@ export default async function HalamanProsesBayar({
   const [{ data: kunjungan }, { data: shiftAktif }, { data: daftarTarif }] = await Promise.all([
     supabase
       .from("kunjungan")
-      .select("id, pasien:pasien_id (no_rm, nama_lengkap, jenis_penjamin), klaster:klaster_tujuan_id (nama)")
+      .select(
+        "id, jenis_penjamin, pasien:pasien_id (no_rm, nama_lengkap, jenis_penjamin), klaster:klaster_tujuan_id (nama)"
+      )
       .eq("id", params.kunjunganId)
       .single(),
     supabase
@@ -61,7 +63,7 @@ export default async function HalamanProsesBayar({
       <FormPembayaran
         kunjunganId={kunjungan.id}
         shiftId={shiftAktif.id}
-        jenisPenjamin={pasien?.jenis_penjamin ?? "umum"}
+        jenisPenjamin={kunjungan.jenis_penjamin ?? pasien?.jenis_penjamin ?? "umum"}
         daftarTarif={daftarTarif ?? []}
       />
     </div>

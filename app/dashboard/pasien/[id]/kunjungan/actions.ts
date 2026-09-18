@@ -15,6 +15,8 @@ export async function daftarKunjunganAction(
   const pasienId = String(formData.get("pasien_id") ?? "");
   const klasterTujuanId = String(formData.get("klaster_tujuan_id") ?? "");
   const jenisKunjungan = String(formData.get("jenis_kunjungan") ?? "");
+  const jenisPenjaminMentah = String(formData.get("jenis_penjamin") ?? "umum").trim();
+  const jenisPenjamin = jenisPenjaminMentah === "bpjs" ? "bpjs" : "umum";
   const keluhanUtama = String(formData.get("keluhan_utama") ?? "").trim();
   const tdSistolik = String(formData.get("td_sistolik") ?? "").trim();
   const tdDiastolik = String(formData.get("td_diastolik") ?? "").trim();
@@ -58,6 +60,7 @@ export async function daftarKunjunganAction(
       pasien_id: pasienId,
       klaster_tujuan_id: klasterTujuanId,
       jenis_kunjungan: jenisKunjungan,
+      jenis_penjamin: jenisPenjamin,
       nomor_antrian: nomorAntrian,
       tanggal: hariIni,
       dibuat_oleh: pemanggil.id,

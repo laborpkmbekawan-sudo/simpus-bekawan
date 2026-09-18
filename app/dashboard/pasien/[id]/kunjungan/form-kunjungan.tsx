@@ -21,9 +21,11 @@ function TombolDaftar() {
 export default function FormKunjungan({
   pasienId,
   daftarKlaster,
+  jenisPenjaminDefault = "umum",
 }: {
   pasienId: string;
   daftarKlaster: { id: string; nama: string }[];
+  jenisPenjaminDefault?: string;
 }) {
   const [state, formAction] = useFormState(daftarKunjunganAction, null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -81,6 +83,26 @@ export default function FormKunjungan({
           <option value="lama">Lama</option>
           <option value="kontrol">Kontrol</option>
         </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="jenis_penjamin" className="text-sm font-bold text-ink/80">
+          Penjamin kunjungan ini
+        </label>
+        <select
+          id="jenis_penjamin"
+          name="jenis_penjamin"
+          required
+          defaultValue={jenisPenjaminDefault === "bpjs" ? "bpjs" : "umum"}
+          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+        >
+          <option value="umum">Umum</option>
+          <option value="bpjs">BPJS</option>
+        </select>
+        <p className="text-xs text-ink/50">
+          Cek dulu status BPJS di PCare -- kalau lagi tidak aktif bulan ini, pilih Umum di sini
+          walau data pasien tercatat BPJS.
+        </p>
       </div>
 
       <div className="space-y-1.5">
