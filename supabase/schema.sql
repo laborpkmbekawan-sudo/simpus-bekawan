@@ -420,3 +420,107 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
 -- =========================================================
+
+-- =========================================================
+-- MODUL KASIR / PEMBAYARAN
+-- Tarif layanan (master harga), shift kasir (buka/tutup),
+-- tagihan per kunjungan (tunai/klaim BPJS).
+-- =========================================================
+
+-- 17. Master tarif layanan.
+create table public.tarif_layanan (
+  id uuid primary key default gen_random_uuid(),
+  nama_layanan text not null,
+  harga numeric(12, 0) not null default 0,
+  aktif boolean not null default true,
+  dibuat_pada timestamptz not null default now()
+);
+
+alter table public.tarif_layanan enable row level security;
+
+create policy "semua_pegawai_lihat_tarif"
+on public.tarif_layanan for select
+to authenticated
+using (true);
+
+create policy "admin_kelola_tarif"
+on public.tarif_layanan for all
+to authenticated
+using (public.peran_saya() = 'admin')
+with check (public.peran_saya() = 'admin');
+
+-- 18. Shift kasir -- satu baris per sesi buka-tutup kasir seorang pegawai.
+create table public.shift_kasir (
+  id uuid primary key default gen_random_uuid(),
+  pegawai_id uuid not null references public.pegawai (id),
+  modal_awal numeric(12, 0) not null default 0,
+  kas_akhir numeric(12, 0),
+  status text not null default 'buka' check (status in ('buka', 'tutup')),
+  dibuka_pada timestamptz not null default now(),
+  ditutup_pada timestamptz
+);
+
+alter table public.shift_kasir enable row level security;
+
+create policy "pegawai_lihat_shift_sendiri"
+on public.shift_kasir for select
+to authenticated
+using (pegawai_id = auth.uid() or public.peran_saya() = 'admin');
+
+create policy "pegawai_buka_shift_sendiri"
+on public.shift_kasir for insert
+to authenticated
+with check (pegawai_id = auth.uid());
+
+create policy "pegawai_tutup_shift_sendiri"
+on public.shift_kasir for update
+to authenticated
+using (pegawai_id = auth.uid() or public.peran_saya() = 'admin')
+with check (pegawai_id = auth.uid() or public.peran_saya() = 'admin');
+
+-- 19. Tagihan -- satu-satu dengan kunjungan.
+create table public.tagihan (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null unique references public.kunjungan (id) on delete cascade,
+  shift_id uuid references public.shift_kasir (id),
+  jenis_penjamin_saat_bayar text,
+  total_tagihan numeric(12, 0) not null default 0,
+  status_pembayaran text not null default 'lunas' check (status_pembayaran in ('lunas', 'klaim_bpjs')),
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+alter table public.tagihan enable row level security;
+
+create policy "semua_pegawai_lihat_tagihan"
+on public.tagihan for select
+to authenticated
+using (true);
+
+create policy "kasir_buat_tagihan"
+on public.tagihan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'loket_rm_kasir'));
+
+-- 20. Rincian item per tagihan.
+create table public.tagihan_item (
+  id uuid primary key default gen_random_uuid(),
+  tagihan_id uuid not null references public.tagihan (id) on delete cascade,
+  nama_layanan text not null,
+  harga numeric(12, 0) not null,
+  qty int not null default 1,
+  subtotal numeric(12, 0) not null
+);
+
+alter table public.tagihan_item enable row level security;
+
+create policy "semua_pegawai_lihat_tagihan_item"
+on public.tagihan_item for select
+to authenticated
+using (true);
+
+create policy "kasir_buat_tagihan_item"
+on public.tagihan_item for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'loket_rm_kasir'));
+-- =========================================================

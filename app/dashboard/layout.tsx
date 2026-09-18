@@ -38,6 +38,8 @@ export default async function LayoutDashboard({
     { href: "/dashboard/kunjungan-hari-ini", label: "Kunjungan Hari Ini" },
     { href: "/dashboard/antrian", label: "Antrian" },
     { href: "/dashboard/rekam-medis", label: "Rekam Medis" },
+    { href: "/dashboard/kasir", label: "Kasir", peranBoleh: ["admin", "loket_rm_kasir"] },
+    { href: "/dashboard/kasir/tarif", label: "Tarif Layanan", peranBoleh: ["admin"] },
     { href: "/dashboard/pegawai", label: "Data Pegawai", peranBoleh: ["admin", "kapus"] },
   ];
 
