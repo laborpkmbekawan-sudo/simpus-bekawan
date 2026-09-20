@@ -17,61 +17,107 @@ function TombolSimpan() {
   );
 }
 
+const inputCls = "w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm";
+
+function Bagian({
+  huruf,
+  judul,
+  petunjuk,
+  children,
+}: {
+  huruf: string;
+  judul: string;
+  petunjuk?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3">
+      <span
+        aria-hidden
+        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-teal-700 text-sm font-extrabold text-white"
+      >
+        {huruf}
+      </span>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <p className="text-sm font-bold text-ink/80">{judul}</p>
+        {petunjuk && <p className="text-xs text-ink/50">{petunjuk}</p>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function FormCatatanKlinis({
   kunjunganId,
+  subjektif,
+  subjektifDariSkrining,
+  objektif,
   diagnosis,
-  catatanKlinis,
   tindakan,
 }: {
   kunjunganId: string;
+  subjektif: string;
+  subjektifDariSkrining: boolean;
+  objektif: string;
   diagnosis: string;
-  catatanKlinis: string;
   tindakan: string;
 }) {
   const [state, formAction] = useFormState(simpanCatatanKlinisAction, null);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-5">
       <input type="hidden" name="kunjungan_id" value={kunjunganId} />
 
-      <div className="space-y-1.5">
-        <label htmlFor="diagnosis" className="text-sm font-bold text-ink/80">
-          Diagnosis
-        </label>
-        <input
-          id="diagnosis"
-          name="diagnosis"
-          defaultValue={diagnosis}
-          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <label htmlFor="catatan_klinis" className="text-sm font-bold text-ink/80">
-          Catatan klinis
-        </label>
+      <Bagian
+        huruf="S"
+        judul="Subjektif"
+        petunjuk={
+          subjektifDariSkrining
+            ? "Keluhan dan anamnesis. Terisi otomatis dari keluhan utama skrining, ubah atau lengkapi bila perlu."
+            : "Keluhan dan anamnesis: keluhan utama, riwayat penyakit sekarang dan dahulu, riwayat pengobatan."
+        }
+      >
         <textarea
-          id="catatan_klinis"
-          name="catatan_klinis"
-          rows={5}
-          defaultValue={catatanKlinis}
-          placeholder="Hasil pemeriksaan, temuan klinis, dst..."
-          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          id="subjektif"
+          name="subjektif"
+          rows={3}
+          defaultValue={subjektif}
+          aria-label="Subjektif"
+          className={inputCls}
         />
-      </div>
+      </Bagian>
 
-      <div className="space-y-1.5">
-        <label htmlFor="tindakan" className="text-sm font-bold text-ink/80">
-          Terapi / rencana
-        </label>
-        <input
+      <Bagian
+        huruf="O"
+        judul="Objektif"
+        petunjuk="Pemeriksaan fisik dan penunjang. Tanda vital dari skrining sudah tampil di atas."
+      >
+        <textarea
+          id="objektif"
+          name="objektif"
+          rows={4}
+          defaultValue={objektif}
+          aria-label="Objektif"
+          placeholder="Hasil pemeriksaan fisik, lab, EKG, dst."
+          className={inputCls}
+        />
+      </Bagian>
+
+      <Bagian huruf="A" judul="Asesmen" petunjuk="Diagnosis kerja / diagnosis banding.">
+        <input id="diagnosis" name="diagnosis" defaultValue={diagnosis} aria-label="Asesmen" className={inputCls} />
+      </Bagian>
+
+      <Bagian huruf="P" judul="Plan" petunjuk="Terapi, edukasi, dan rencana tindak lanjut.">
+        <textarea
           id="tindakan"
           name="tindakan"
+          rows={3}
           defaultValue={tindakan}
-          placeholder="contoh: Pemberian resep, edukasi, rujuk lab"
-          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+          aria-label="Plan"
+          placeholder="contoh: Paracetamol 3x500 mg, edukasi istirahat, kontrol 3 hari"
+          className={inputCls}
         />
-      </div>
+      </Bagian>
 
       {state?.pesan && (
         <p

@@ -54,7 +54,7 @@ function Lencana({ jumlah }: { jumlah: number }) {
   return (
     <span
       className="ml-2 min-w-[20px] rounded-full bg-clay-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white"
-      aria-label={`${jumlah} rujukan belum diterima`}
+      aria-label={`${jumlah} notifikasi rujukan`}
     >
       {jumlah > 99 ? "99+" : jumlah}
     </span>
@@ -63,7 +63,9 @@ function Lencana({ jumlah }: { jumlah: number }) {
 
 export default function MenuSamping({ peran }: { peran: string }) {
   const pathname = usePathname();
-  const { jumlah: jumlahRujukan } = useNotifikasiRujukan();
+  const { jumlah: jumlahMasuk, jumlahPembaruan } = useNotifikasiRujukan();
+  // Rujukan masuk yang belum diterima + pembaruan rujukan keluar yang belum dilihat.
+  const jumlahRujukan = jumlahMasuk + jumlahPembaruan;
 
   const boleh = (p?: string[]) => !p || p.includes(peran);
   const grupTampil = MENU.filter((g) => boleh(g.peranBoleh))

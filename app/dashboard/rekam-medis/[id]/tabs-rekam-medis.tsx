@@ -18,9 +18,10 @@ type Riwayat = {
   status: string;
   penjamin: string | null;
   namaKlaster: string;
+  subjektif: string | null;
+  objektif: string | null;
   diagnosis: string | null;
-  catatanKlinis: string | null;
-  terapi: string | null;
+  plan: string | null;
   daftarTindakan: string[];
 };
 
@@ -97,11 +98,17 @@ export default function TabsRekamMedis({ pasien, riwayat }: { pasien: Pasien; ri
                     {r.penjamin === "bpjs" ? "BPJS" : r.penjamin === "umum" ? "Umum" : "—"}
                     <span className="ml-4 font-bold text-ink/70">Status:</span> <span className="capitalize">{r.status}</span>
                   </p>
-                  <p>
-                    <span className="font-bold text-ink/70">Catatan klinis:</span> {r.catatanKlinis || "—"}
+                  <p className="whitespace-pre-line">
+                    <span className="font-bold text-ink/70">S (Subjektif):</span> {r.subjektif || "—"}
                   </p>
-                  <p>
-                    <span className="font-bold text-ink/70">Terapi / rencana:</span> {r.terapi || "—"}
+                  <p className="whitespace-pre-line">
+                    <span className="font-bold text-ink/70">O (Objektif):</span> {r.objektif || "—"}
+                  </p>
+                  <p className="whitespace-pre-line">
+                    <span className="font-bold text-ink/70">A (Asesmen):</span> {r.diagnosis || "—"}
+                  </p>
+                  <p className="whitespace-pre-line">
+                    <span className="font-bold text-ink/70">P (Plan):</span> {r.plan || "—"}
                   </p>
                   <p>
                     <span className="font-bold text-ink/70">Tindakan:</span>{" "}

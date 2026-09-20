@@ -359,3 +359,27 @@ export async function cariPasienAction(
 
   return (data ?? []).map((p) => ({ noRm: p.no_rm, nama: p.nama_lengkap, nik: p.nik ?? null }));
 }
+
+// Tandai pembaruan rujukan keluar (diterima / selesai) sebagai sudah dilihat
+// oleh pegawai yang sedang login. Dipanggil saat tab Rujukan Keluar dibuka.
+export async function tandaiPembaruanRujukanDilihatAction() {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !pemanggil.lokasi_id) return;
+
+  const supabase = createClient();
+  const sejak = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: daftar } = await supabase
+    .from("rujukan")
+    .select("id, status")
+    .eq("jenis", "internal")
+    .eq("dari_lokasi_id", pemanggil.lokasi_id)
+    .in("status", ["diterima", "selesai"])
+    .gte("diperbarui_pada", sejak)
+    .limit(200);
+  if (!daftar || daftar.length === 0) return;
+
+  await supabase.from("rujukan_status_dibaca").upsert(
+    daftar.map((r) => ({ pegawai_id: pemanggil.id, rujukan_id: r.id, status: r.status })),
+    { onConflict: "pegawai_id,rujukan_id,status", ignoreDuplicates: true }
+  );
+}

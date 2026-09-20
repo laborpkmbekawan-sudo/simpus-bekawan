@@ -17,7 +17,7 @@ export default async function HalamanRekamMedis({ params }: { params: { id: stri
     supabase
       .from("kunjungan")
       .select(
-        "id, tanggal, status, jenis_penjamin, klaster:klaster_tujuan_id (nama), catatan_klinis (diagnosis, catatan_klinis, tindakan), kunjungan_tindakan (dibatalkan, tarif:tarif_layanan_id (nama_layanan))"
+        "id, tanggal, status, jenis_penjamin, klaster:klaster_tujuan_id (nama), catatan_klinis (subjektif, objektif, diagnosis, tindakan, catatan_klinis), kunjungan_tindakan (dibatalkan, tarif:tarif_layanan_id (nama_layanan))"
       )
       .eq("pasien_id", params.id)
       .order("tanggal", { ascending: false })
@@ -27,10 +27,14 @@ export default async function HalamanRekamMedis({ params }: { params: { id: stri
   if (!pasien) notFound();
 
   const riwayat = (kunjunganMentah ?? []).map((k) => {
-    const c = k.catatan_klinis as unknown as
-      | { diagnosis: string | null; catatan_klinis: string | null; tindakan: string | null }
-      | { diagnosis: string | null; catatan_klinis: string | null; tindakan: string | null }[]
-      | null;
+    type CatatanKlinis = {
+      subjektif: string | null;
+      objektif: string | null;
+      diagnosis: string | null;
+      tindakan: string | null;
+      catatan_klinis: string | null; // kolom lama sebelum SOAP
+    };
+    const c = k.catatan_klinis as unknown as CatatanKlinis | CatatanKlinis[] | null;
     const catatan = Array.isArray(c) ? c[0] ?? null : c;
     const daftarTindakan = (
       (k.kunjungan_tindakan as unknown as
@@ -47,8 +51,10 @@ export default async function HalamanRekamMedis({ params }: { params: { id: stri
       penjamin: k.jenis_penjamin,
       namaKlaster: (k.klaster as unknown as { nama: string } | null)?.nama ?? "—",
       diagnosis: catatan?.diagnosis ?? null,
-      catatanKlinis: catatan?.catatan_klinis ?? null,
-      terapi: catatan?.tindakan ?? null,
+      subjektif: catatan?.subjektif ?? null,
+      // Catatan lama (sebelum SOAP) tetap terbaca lewat kolom lama kalau O belum terisi.
+      objektif: catatan?.objektif ?? catatan?.catatan_klinis ?? null,
+      plan: catatan?.tindakan ?? null,
       daftarTindakan,
     };
   });

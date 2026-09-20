@@ -5,6 +5,7 @@ import { ringkasTtv } from "@/lib/ttv";
 import FormRujukan from "./form-rujukan";
 import AksiRujukan from "./aksi-rujukan";
 import type { PasienTerdaftar } from "./pilih-pasien";
+import TandaiDilihat from "./tandai-dilihat";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -29,7 +30,13 @@ export default async function HalamanRujukan({
   const klinis = PERAN_KLINIS.includes(pemanggil.peran);
 
   const tab =
-    searchParams.tab === "dibuat" ? "dibuat" : searchParams.tab === "semua" && bolehLihatSemua ? "semua" : "masuk";
+    searchParams.tab === "dibuat"
+      ? "dibuat"
+      : searchParams.tab === "keluar"
+      ? "keluar"
+      : searchParams.tab === "semua" && bolehLihatSemua
+      ? "semua"
+      : "masuk";
 
   const semuaLokasi = await ambilSemuaLokasi();
   const lokasiSaya = semuaLokasi.find((l) => l.id === pemanggil.lokasi_id) ?? null;
@@ -109,6 +116,9 @@ export default async function HalamanRujukan({
     if (!admin) query = pemanggil.lokasi_id ? query.eq("ke_lokasi_id", pemanggil.lokasi_id) : query.eq("id", kosong);
   } else if (tab === "dibuat") {
     query = query.eq("dibuat_oleh", pemanggil.id);
+  } else if (tab === "keluar") {
+    // Semua rujukan yang dikirim dari lokasi kerjaku (bukan cuma buatanku).
+    query = pemanggil.lokasi_id ? query.eq("dari_lokasi_id", pemanggil.lokasi_id) : query.eq("id", kosong);
   }
 
   const [{ data: daftar }, { data: riwayatTujuan }] = await Promise.all([
@@ -159,6 +169,9 @@ export default async function HalamanRujukan({
           <Link href="/dashboard/rujukan?tab=masuk" className={tabCls(tab === "masuk")}>
             Rujukan Masuk
           </Link>
+          <Link href="/dashboard/rujukan?tab=keluar" className={tabCls(tab === "keluar")}>
+            Rujukan Keluar
+          </Link>
           <Link href="/dashboard/rujukan?tab=dibuat" className={tabCls(tab === "dibuat")}>
             Dibuat Saya
           </Link>
@@ -168,6 +181,10 @@ export default async function HalamanRujukan({
             </Link>
           )}
         </div>
+
+        {tab === "keluar" && (
+          <TandaiDilihat kunci={(daftar ?? []).map((r) => `${r.id}:${r.status}`).join(",")} />
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -251,7 +268,11 @@ export default async function HalamanRujukan({
               {(daftar ?? []).length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-sm text-ink/45">
-                    {tab === "masuk" ? "Belum ada rujukan masuk ke lokasimu." : "Belum ada rujukan."}
+                    {tab === "masuk"
+                      ? "Belum ada rujukan masuk ke lokasimu."
+                      : tab === "keluar"
+                      ? "Belum ada rujukan yang dikirim dari lokasimu."
+                      : "Belum ada rujukan."}
                   </td>
                 </tr>
               )}

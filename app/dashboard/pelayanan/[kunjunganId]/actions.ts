@@ -47,15 +47,18 @@ export async function simpanCatatanKlinisAction(_sebelum: Hasil | null, formData
   const akses = await cekAkses(kunjunganId);
   if (!akses.ok) return { pesan: akses.pesan, sukses: false };
 
+  // SOAP: S = subjektif, O = objektif, A = diagnosis, P = tindakan (terapi / rencana).
+  const subjektif = String(formData.get("subjektif") ?? "").trim();
+  const objektif = String(formData.get("objektif") ?? "").trim();
   const diagnosis = String(formData.get("diagnosis") ?? "").trim();
-  const catatan = String(formData.get("catatan_klinis") ?? "").trim();
   const tindakan = String(formData.get("tindakan") ?? "").trim();
 
   const { error } = await akses.supabase.from("catatan_klinis").upsert(
     {
       kunjungan_id: kunjunganId,
+      subjektif: subjektif || null,
+      objektif: objektif || null,
       diagnosis: diagnosis || null,
-      catatan_klinis: catatan || null,
       tindakan: tindakan || null,
       dibuat_oleh: akses.pemanggil.id,
     },

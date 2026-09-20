@@ -177,7 +177,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
-      .select("diagnosis, catatan_klinis, tindakan")
+      .select("subjektif, objektif, diagnosis, tindakan")
       .eq("kunjungan_id", kunjungan.id)
       .maybeSingle(),
     supabase
@@ -332,11 +332,13 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
       </section>
 
       <section className="rounded-card border border-sand-100 bg-white p-5">
-        <h2 className="mb-4 text-base font-bold text-ink">Catatan Klinis</h2>
+        <h2 className="mb-4 text-base font-bold text-ink">Catatan Klinis (SOAP)</h2>
         <FormCatatanKlinis
           kunjunganId={kunjungan.id}
+          subjektif={catatan?.subjektif ?? skrining?.keluhan_utama ?? ""}
+          subjektifDariSkrining={!catatan?.subjektif && !!skrining?.keluhan_utama}
+          objektif={catatan?.objektif ?? ""}
           diagnosis={catatan?.diagnosis ?? ""}
-          catatanKlinis={catatan?.catatan_klinis ?? ""}
           tindakan={catatan?.tindakan ?? ""}
         />
       </section>
