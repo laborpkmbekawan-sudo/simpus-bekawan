@@ -1,6 +1,8 @@
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import KartuAntrian from "./kartu-antrian";
 
+const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
+
 export default async function HalamanAntrian() {
   const pemanggil = await getPegawaiSaya();
   if (!pemanggil) return null;
@@ -86,6 +88,7 @@ export default async function HalamanAntrian() {
                     status={k.status}
                     triase={triase}
                     bisaPanggil={bisaPanggil}
+                    bisaLayani={bisaPanggil && PERAN_KLINIS.includes(pemanggil.peran)}
                   />
                 );
               })}

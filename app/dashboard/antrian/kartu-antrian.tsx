@@ -1,6 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ubahStatusKunjunganAction } from "./actions";
 
 const LABEL_TRIASE: Record<string, string> = { hijau: "Hijau", kuning: "Kuning", merah: "Merah" };
@@ -19,6 +21,7 @@ type KartuProps = {
   status: string;
   triase: string | null;
   bisaPanggil: boolean;
+  bisaLayani: boolean;
 };
 
 export default function KartuAntrian({
@@ -30,14 +33,20 @@ export default function KartuAntrian({
   status,
   triase,
   bisaPanggil,
+  bisaLayani,
 }: KartuProps) {
-  const [pending, mulaiTransisi] = useTransition();
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
 
-  function lanjutkanStatus() {
+  async function lanjutkanStatus() {
     const berikutnya = status === "menunggu" ? "dipanggil" : "selesai";
-    mulaiTransisi(() => {
-      ubahStatusKunjunganAction(id, berikutnya);
-    });
+    setPending(true);
+    await ubahStatusKunjunganAction(id, berikutnya);
+    setPending(false);
+    // Tenaga klinis: habis Panggil langsung masuk halaman Pelayanan.
+    if (berikutnya === "dipanggil" && bisaLayani) {
+      router.push(`/dashboard/pelayanan/${id}`);
+    }
   }
 
   return (
@@ -71,6 +80,13 @@ export default function KartuAntrian({
         <span className="text-xs font-medium text-ink/40">Selesai</span>
       ) : !bisaPanggil ? (
         <span className="text-xs font-medium capitalize text-ink/40">{status}</span>
+      ) : status === "dipanggil" && bisaLayani ? (
+        <Link
+          href={`/dashboard/pelayanan/${id}`}
+          className="whitespace-nowrap rounded-sm bg-teal-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-teal-900"
+        >
+          Layani
+        </Link>
       ) : (
         <button
           onClick={lanjutkanStatus}

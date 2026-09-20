@@ -29,13 +29,11 @@ function TombolCatat() {
 
 export default function ChecklistTindakan({
   kunjunganId,
-  pasienId,
   daftarTarif,
   resepPerTarif,
   tindakanTercatat,
 }: {
   kunjunganId: string;
-  pasienId: string;
   daftarTarif: Tarif[];
   resepPerTarif: Record<string, ResepBaris[]>;
   tindakanTercatat: TindakanTercatat[];
@@ -81,7 +79,6 @@ export default function ChecklistTindakan({
     <div className="space-y-5">
       <form ref={formRef} action={formAction} className="space-y-4 rounded-card border border-sand-100 bg-white p-5">
         <input type="hidden" name="kunjungan_id" value={kunjunganId} />
-        <input type="hidden" name="pasien_id" value={pasienId} />
         <input type="hidden" name="tarif_layanan_id" value={tarifDipilih} />
         <input type="hidden" name="daftar_bhp" value={JSON.stringify(daftarBhpUntukKirim)} />
 
@@ -155,14 +152,14 @@ export default function ChecklistTindakan({
       </form>
 
       <div>
-        <p className="mb-2 text-sm font-bold text-ink">Tindakan Tercatat Hari Ini</p>
+        <p className="mb-2 text-sm font-bold text-ink">Tindakan Tercatat</p>
         <div className="space-y-2">
           {tindakanTercatat.map((t) => (
             <div key={t.id} className="rounded-sm border border-sand-100 bg-white p-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-ink">{t.namaLayanan}</p>
                 <button
-                  onClick={() => batalkanTindakanAction(t.id, pasienId)}
+                  onClick={() => batalkanTindakanAction(t.id, kunjunganId)}
                   className="text-xs font-medium text-clay-700 underline decoration-clay-700/30 underline-offset-2"
                 >
                   Batalkan
@@ -177,7 +174,7 @@ export default function ChecklistTindakan({
           ))}
           {tindakanTercatat.length === 0 && (
             <p className="rounded-sm bg-sand-50 px-4 py-6 text-center text-sm text-ink/45">
-              Belum ada tindakan tercatat hari ini.
+              Belum ada tindakan tercatat.
             </p>
           )}
         </div>
