@@ -13,22 +13,28 @@ export default async function HalamanProsesBayar({
 
   const supabase = createClient();
 
-  const [{ data: kunjungan }, { data: shiftAktif }, { data: daftarTarif }] = await Promise.all([
-    supabase
-      .from("kunjungan")
-      .select(
-        "id, jenis_penjamin, pasien:pasien_id (no_rm, nama_lengkap, jenis_penjamin), klaster:klaster_tujuan_id (nama)"
-      )
-      .eq("id", params.kunjunganId)
-      .single(),
-    supabase
-      .from("shift_kasir")
-      .select("id")
-      .eq("pegawai_id", pemanggil.id)
-      .eq("status", "buka")
-      .maybeSingle(),
-    supabase.from("tarif_layanan").select("id, nama_layanan, harga").eq("aktif", true).order("nama_layanan"),
-  ]);
+  const [{ data: kunjungan }, { data: shiftAktif }, { data: daftarTarif }, { data: tindakanMentah }] =
+    await Promise.all([
+      supabase
+        .from("kunjungan")
+        .select(
+          "id, jenis_penjamin, pasien:pasien_id (no_rm, nama_lengkap, jenis_penjamin), klaster:klaster_tujuan_id (nama)"
+        )
+        .eq("id", params.kunjunganId)
+        .single(),
+      supabase
+        .from("shift_kasir")
+        .select("id")
+        .eq("pegawai_id", pemanggil.id)
+        .eq("status", "buka")
+        .maybeSingle(),
+      supabase.from("tarif_layanan").select("id, nama_layanan, harga").eq("aktif", true).order("nama_layanan"),
+      supabase
+        .from("kunjungan_tindakan")
+        .select("id, tarif:tarif_layanan_id (id, nama_layanan, harga)")
+        .eq("kunjungan_id", params.kunjunganId)
+        .eq("dibatalkan", false),
+    ]);
 
   if (!kunjungan) {
     notFound();
@@ -39,6 +45,10 @@ export default async function HalamanProsesBayar({
 
   const pasien = kunjungan.pasien as unknown as { no_rm: string; nama_lengkap: string; jenis_penjamin: string } | null;
   const klaster = kunjungan.klaster as unknown as { nama: string } | null;
+
+  const tindakanTercatat = (tindakanMentah ?? [])
+    .map((t) => t.tarif as unknown as { id: string; nama_layanan: string; harga: number } | null)
+    .filter((t): t is { id: string; nama_layanan: string; harga: number } => !!t);
 
   return (
     <div className="space-y-6">
@@ -65,6 +75,7 @@ export default async function HalamanProsesBayar({
         shiftId={shiftAktif.id}
         jenisPenjamin={kunjungan.jenis_penjamin ?? pasien?.jenis_penjamin ?? "umum"}
         daftarTarif={daftarTarif ?? []}
+        tindakanTercatat={tindakanTercatat}
       />
     </div>
   );

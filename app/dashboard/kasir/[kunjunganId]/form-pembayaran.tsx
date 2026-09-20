@@ -32,14 +32,20 @@ export default function FormPembayaran({
   shiftId,
   jenisPenjamin,
   daftarTarif,
+  tindakanTercatat,
 }: {
   kunjunganId: string;
   shiftId: string;
   jenisPenjamin: string;
   daftarTarif: Tarif[];
+  tindakanTercatat: Tarif[];
 }) {
   const [state, formAction] = useFormState(buatTagihanTunaiAction, null);
-  const [baris, setBaris] = useState<ItemDipilih[]>([]);
+  // Prefill dari tindakan yang udah dicatat di rekam medis (checklist
+  // tindakan) -- kasir tinggal cek/edit, gak perlu pilih dari nol lagi.
+  const [baris, setBaris] = useState<ItemDipilih[]>(() =>
+    tindakanTercatat.map((t) => ({ idBaris: crypto.randomUUID(), tarifId: t.id, qty: 1 }))
+  );
 
   function tambahBaris() {
     setBaris((s) => [...s, { idBaris: crypto.randomUUID(), tarifId: daftarTarif[0]?.id ?? "", qty: 1 }]);
@@ -64,9 +70,25 @@ export default function FormPembayaran({
 
   if (jenisPenjamin === "bpjs") {
     return (
-      <div className="rounded-card border border-sand-100 bg-white p-6 text-center">
-        <p className="text-sm text-ink/60">Pasien ini pakai BPJS -- gak ada tagihan tunai, dicatat sebagai klaim.</p>
-        <form action={tandaiKlaimBpjsAction} className="mt-4">
+      <div className="rounded-card border border-sand-100 bg-white p-6">
+        <p className="text-center text-sm text-ink/60">
+          Pasien ini pakai BPJS -- gak ada tagihan tunai, dicatat sebagai klaim.
+        </p>
+
+        {tindakanTercatat.length > 0 && (
+          <div className="mt-4 rounded-sm border border-sand-100 bg-sand-50 p-3">
+            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-ink/45">
+              Tindakan tercatat (buat verifikasi klaim)
+            </p>
+            <ul className="space-y-1 text-sm text-ink">
+              {tindakanTercatat.map((t, i) => (
+                <li key={i}>• {t.nama_layanan}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <form action={tandaiKlaimBpjsAction} className="mt-4 text-center">
           <input type="hidden" name="kunjungan_id" value={kunjunganId} />
           <input type="hidden" name="shift_id" value={shiftId} />
           <button
@@ -87,7 +109,14 @@ export default function FormPembayaran({
       <input type="hidden" name="jenis_penjamin" value={jenisPenjamin} />
       <input type="hidden" name="item_tagihan" value={JSON.stringify(itemUntukKirim)} />
 
-      <p className="text-sm font-bold text-ink">Pilih layanan yang dikenakan biaya</p>
+      <div>
+        <p className="text-sm font-bold text-ink">Pilih layanan yang dikenakan biaya</p>
+        {tindakanTercatat.length > 0 && (
+          <p className="mt-0.5 text-xs text-teal-700">
+            {tindakanTercatat.length} layanan udah keisi otomatis dari tindakan di rekam medis -- cek/edit dulu sebelum bayar.
+          </p>
+        )}
+      </div>
 
       <div className="space-y-2">
         {baris.map((b) => {

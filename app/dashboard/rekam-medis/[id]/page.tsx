@@ -14,21 +14,29 @@ export default async function HalamanRekamMedis({
   const supabase = createClient();
   const hariIni = new Date().toISOString().slice(0, 10);
 
-  const [{ data: pasien }, { data: kunjunganMentah }] = await Promise.all([
-    supabase
-      .from("pasien")
-      .select("id, no_rm, nama_lengkap, tanggal_lahir, jenis_kelamin, alergi, family_folder")
-      .eq("id", params.id)
-      .single(),
-    supabase
-      .from("kunjungan")
-      .select(
-        "id, tanggal, klaster:klaster_tujuan_id (nama), catatan_klinis (diagnosis, catatan_klinis, tindakan)"
-      )
-      .eq("pasien_id", params.id)
-      .order("tanggal", { ascending: false })
-      .order("dibuat_pada", { ascending: false }),
-  ]);
+  const [{ data: pasien }, { data: kunjunganMentah }, { data: daftarTarifMentah }, { data: daftarResepMentah }] =
+    await Promise.all([
+      supabase
+        .from("pasien")
+        .select("id, no_rm, nama_lengkap, tanggal_lahir, jenis_kelamin, alergi, family_folder")
+        .eq("id", params.id)
+        .single(),
+      supabase
+        .from("kunjungan")
+        .select(
+          "id, tanggal, klaster:klaster_tujuan_id (nama), catatan_klinis (diagnosis, catatan_klinis, tindakan)"
+        )
+        .eq("pasien_id", params.id)
+        .order("tanggal", { ascending: false })
+        .order("dibuat_pada", { ascending: false }),
+      supabase
+        .from("tarif_layanan")
+        .select("id, nama_layanan, harga, kategori")
+        .eq("aktif", true)
+        .order("kategori")
+        .order("nama_layanan"),
+      supabase.from("resep_bhp_tindakan").select("tarif_layanan_id, jumlah_default, bhp:bhp_id (id, nama_bhp, satuan)"),
+    ]);
 
   if (!pasien) {
     notFound();
@@ -59,6 +67,51 @@ export default async function HalamanRekamMedis({
       (k.catatan_klinis as unknown as { diagnosis: string | null } | null)?.diagnosis ?? null,
   }));
 
+  const resepPerTarif: Record<
+    string,
+    { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]
+  > = {};
+  for (const r of daftarResepMentah ?? []) {
+    const bhp = r.bhp as unknown as { id: string; nama_bhp: string; satuan: string } | null;
+    if (!bhp) continue;
+    const daftar = resepPerTarif[r.tarif_layanan_id] ?? [];
+    daftar.push({ bhp_id: bhp.id, nama_bhp: bhp.nama_bhp, satuan: bhp.satuan, jumlah_default: Number(r.jumlah_default) });
+    resepPerTarif[r.tarif_layanan_id] = daftar;
+  }
+
+  let tindakanTercatat: {
+    id: string;
+    namaLayanan: string;
+    dicatatPada: string;
+    items: { namaBhp: string; jumlah: number; satuan: string }[];
+  }[] = [];
+
+  if (kunjunganHariIniMentah) {
+    const { data: tindakanMentah } = await supabase
+      .from("kunjungan_tindakan")
+      .select(
+        "id, dicatat_pada, tarif:tarif_layanan_id (nama_layanan), kunjungan_tindakan_bhp (jumlah_terpakai, bhp:bhp_id (nama_bhp, satuan))"
+      )
+      .eq("kunjungan_id", kunjunganHariIniMentah.id)
+      .eq("dibatalkan", false)
+      .order("dicatat_pada", { ascending: false });
+
+    tindakanTercatat = (tindakanMentah ?? []).map((t) => ({
+      id: t.id,
+      namaLayanan: (t.tarif as unknown as { nama_layanan: string } | null)?.nama_layanan ?? "—",
+      dicatatPada: t.dicatat_pada,
+      items: (
+        (t.kunjungan_tindakan_bhp as unknown as
+          | { jumlah_terpakai: number; bhp: { nama_bhp: string; satuan: string } | null }[]
+          | null) ?? []
+      ).map((i) => ({
+        namaBhp: i.bhp?.nama_bhp ?? "—",
+        jumlah: Number(i.jumlah_terpakai),
+        satuan: i.bhp?.satuan ?? "",
+      })),
+    }));
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -87,6 +140,9 @@ export default async function HalamanRekamMedis({
         kunjunganHariIni={kunjunganHariIni}
         riwayat={riwayat}
         bolehTulis={!!pemanggil && PERAN_KLINIS.includes(pemanggil.peran)}
+        daftarTarif={daftarTarifMentah ?? []}
+        resepPerTarif={resepPerTarif}
+        tindakanTercatat={tindakanTercatat}
       />
     </div>
   );

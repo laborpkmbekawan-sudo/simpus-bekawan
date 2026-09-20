@@ -18,7 +18,11 @@ function TombolSimpan() {
   );
 }
 
-export default function FormTambahTarif() {
+export default function FormTambahTarif({
+  daftarKlaster,
+}: {
+  daftarKlaster: { id: string; nama: string }[];
+}) {
   const [state, formAction] = useFormState(tambahTarifAction, null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -57,6 +61,36 @@ export default function FormTambahTarif() {
           required
           className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
         />
+      </div>
+      <div className="w-44 space-y-1.5">
+        <label htmlFor="kategori" className="text-sm font-bold text-ink/80">
+          Kategori
+        </label>
+        <input
+          id="kategori"
+          name="kategori"
+          defaultValue="Umum"
+          placeholder="contoh: Laboratorium"
+          className="w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm"
+        />
+      </div>
+      <div className="w-56 space-y-1.5">
+        <label htmlFor="klaster_terkait_id" className="text-sm font-bold text-ink/80">
+          Klaster terkait <span className="font-normal text-ink/40">(opsional)</span>
+        </label>
+        <select
+          id="klaster_terkait_id"
+          name="klaster_terkait_id"
+          defaultValue=""
+          className="w-full rounded-sm border border-sand-100 bg-white px-3 py-2.5 text-sm"
+        >
+          <option value="">Semua klaster</option>
+          {daftarKlaster.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.nama}
+            </option>
+          ))}
+        </select>
       </div>
       <TombolSimpan />
       {state?.pesan && (

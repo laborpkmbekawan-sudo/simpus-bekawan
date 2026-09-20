@@ -533,3 +533,210 @@ alter table public.kunjungan
 comment on column public.kunjungan.jenis_penjamin is
   'Penjamin yang dipilih petugas saat kunjungan ini didaftarkan -- independen dari pasien.jenis_penjamin (default/master), karena status aktif BPJS pasien bisa beda tiap bulan.';
 -- =========================================================
+
+-- =========================================================
+-- MODUL FARMASI / BHP (Bahan Habis Pakai) + CHECKLIST TINDAKAN
+-- Perawat/dokter/bidan centang tindakan yang dilakukan, BHP yang kepake
+-- otomatis kepotong dari stok (dengan default dari resep, bisa diedit).
+-- =========================================================
+
+-- 22. Tarif layanan diperluas: kategori (buat grouping tampilan) dan
+--     klaster_terkait (opsional, buat filter tindakan per klaster).
+alter table public.tarif_layanan
+  add column if not exists kategori text not null default 'Umum',
+  add column if not exists klaster_terkait_id uuid references public.klaster (id);
+
+-- 23. Master BHP (bahan habis pakai): stok dilacak per item.
+create table public.bhp (
+  id uuid primary key default gen_random_uuid(),
+  nama_bhp text not null,
+  satuan text not null default 'pcs',
+  stok_saat_ini numeric(12, 2) not null default 0,
+  stok_minimum numeric(12, 2) not null default 0,
+  aktif boolean not null default true,
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.bhp is 'Master bahan habis pakai (BHP) dan stok berjalan';
+
+alter table public.bhp enable row level security;
+
+create policy "semua_pegawai_lihat_bhp"
+on public.bhp for select
+to authenticated
+using (true);
+
+create policy "farmasi_kelola_bhp"
+on public.bhp for all
+to authenticated
+using (public.peran_saya() in ('admin', 'farmasi'))
+with check (public.peran_saya() in ('admin', 'farmasi'));
+
+-- 24. Riwayat mutasi stok BHP -- setiap kali stok berubah, tercatat di sini.
+create table public.mutasi_stok_bhp (
+  id uuid primary key default gen_random_uuid(),
+  bhp_id uuid not null references public.bhp (id) on delete cascade,
+  jenis text not null check (jenis in ('masuk', 'keluar', 'penyesuaian')),
+  jumlah numeric(12, 2) not null,
+  keterangan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+alter table public.mutasi_stok_bhp enable row level security;
+
+create policy "semua_pegawai_lihat_mutasi_bhp"
+on public.mutasi_stok_bhp for select
+to authenticated
+using (true);
+
+create policy "farmasi_catat_mutasi_bhp"
+on public.mutasi_stok_bhp for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'farmasi'));
+
+-- 25. Resep BHP per tindakan -- default pemakaian BHP kalau tindakan ini
+--     dicentang, tinggal starting point yang bisa diedit pas dicatat.
+create table public.resep_bhp_tindakan (
+  id uuid primary key default gen_random_uuid(),
+  tarif_layanan_id uuid not null references public.tarif_layanan (id) on delete cascade,
+  bhp_id uuid not null references public.bhp (id) on delete cascade,
+  jumlah_default numeric(12, 2) not null default 1,
+  unique (tarif_layanan_id, bhp_id)
+);
+
+alter table public.resep_bhp_tindakan enable row level security;
+
+create policy "semua_pegawai_lihat_resep_bhp"
+on public.resep_bhp_tindakan for select
+to authenticated
+using (true);
+
+create policy "farmasi_kelola_resep_bhp"
+on public.resep_bhp_tindakan for all
+to authenticated
+using (public.peran_saya() in ('admin', 'farmasi'))
+with check (public.peran_saya() in ('admin', 'farmasi'));
+
+-- 26. Tindakan yang tercatat pada satu kunjungan (dari checklist di RM).
+create table public.kunjungan_tindakan (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  tarif_layanan_id uuid not null references public.tarif_layanan (id),
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+alter table public.kunjungan_tindakan enable row level security;
+
+create policy "semua_pegawai_lihat_kunjungan_tindakan"
+on public.kunjungan_tindakan for select
+to authenticated
+using (true);
+
+create policy "peran_klinis_catat_tindakan"
+on public.kunjungan_tindakan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+create policy "peran_klinis_ubah_tindakan"
+on public.kunjungan_tindakan for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+-- 27. BHP aktual yang kepake per tindakan (angka bisa beda dari resep default).
+create table public.kunjungan_tindakan_bhp (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_tindakan_id uuid not null references public.kunjungan_tindakan (id) on delete cascade,
+  bhp_id uuid not null references public.bhp (id),
+  jumlah_terpakai numeric(12, 2) not null
+);
+
+alter table public.kunjungan_tindakan_bhp enable row level security;
+
+create policy "semua_pegawai_lihat_kunjungan_tindakan_bhp"
+on public.kunjungan_tindakan_bhp for select
+to authenticated
+using (true);
+
+-- Baris ini SELALU ditulis lewat RPC catat_tindakan_kunjungan (security
+-- definer) di bawah, jadi gak butuh policy insert langsung buat peran klinis.
+
+-- 28. RPC: catat tindakan + potong stok BHP sekaligus, atomic (semua
+--     berhasil atau semua batal, gak ada stok kepotong tanggung).
+--     daftar_bhp: jsonb array [{ "bhp_id": "...", "jumlah": 2 }, ...]
+create or replace function public.catat_tindakan_kunjungan(
+  p_kunjungan_id uuid,
+  p_tarif_layanan_id uuid,
+  p_daftar_bhp jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tindakan_id uuid;
+  v_item jsonb;
+  v_bhp_id uuid;
+  v_jumlah numeric;
+begin
+  if public.peran_saya() not in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan') then
+    raise exception 'Cuma tenaga klinis yang boleh mencatat tindakan';
+  end if;
+
+  insert into public.kunjungan_tindakan (kunjungan_id, tarif_layanan_id, dicatat_oleh)
+  values (p_kunjungan_id, p_tarif_layanan_id, auth.uid())
+  returning id into v_tindakan_id;
+
+  for v_item in select * from jsonb_array_elements(p_daftar_bhp)
+  loop
+    v_bhp_id := (v_item->>'bhp_id')::uuid;
+    v_jumlah := (v_item->>'jumlah')::numeric;
+
+    if v_jumlah > 0 then
+      insert into public.kunjungan_tindakan_bhp (kunjungan_tindakan_id, bhp_id, jumlah_terpakai)
+      values (v_tindakan_id, v_bhp_id, v_jumlah);
+
+      update public.bhp set stok_saat_ini = stok_saat_ini - v_jumlah where id = v_bhp_id;
+
+      insert into public.mutasi_stok_bhp (bhp_id, jenis, jumlah, keterangan, dibuat_oleh)
+      values (v_bhp_id, 'keluar', v_jumlah, 'Otomatis dari tindakan kunjungan', auth.uid());
+    end if;
+  end loop;
+
+  return v_tindakan_id;
+end;
+$$;
+
+-- 29. RPC: batalkan tindakan, balikin stok BHP yang udah kepotong.
+create or replace function public.batalkan_tindakan_kunjungan(p_tindakan_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_baris record;
+begin
+  if public.peran_saya() not in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan') then
+    raise exception 'Cuma tenaga klinis yang boleh membatalkan tindakan';
+  end if;
+
+  for v_baris in
+    select bhp_id, jumlah_terpakai from public.kunjungan_tindakan_bhp
+    where kunjungan_tindakan_id = p_tindakan_id
+  loop
+    update public.bhp set stok_saat_ini = stok_saat_ini + v_baris.jumlah_terpakai where id = v_baris.bhp_id;
+
+    insert into public.mutasi_stok_bhp (bhp_id, jenis, jumlah, keterangan, dibuat_oleh)
+    values (v_baris.bhp_id, 'masuk', v_baris.jumlah_terpakai, 'Pembatalan tindakan', auth.uid());
+  end loop;
+
+  update public.kunjungan_tindakan set dibatalkan = true where id = p_tindakan_id;
+end;
+$$;
+-- =========================================================
+-- =========================================================

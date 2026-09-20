@@ -39,7 +39,8 @@ export default async function LayoutDashboard({
     { href: "/dashboard/antrian", label: "Antrian" },
     { href: "/dashboard/rekam-medis", label: "Rekam Medis" },
     { href: "/dashboard/kasir", label: "Kasir", peranBoleh: ["admin", "loket_rm_kasir"] },
-    { href: "/dashboard/kasir/tarif", label: "Tarif Layanan", peranBoleh: ["admin"] },
+    { href: "/dashboard/kasir/tarif", label: "Tarif & Tindakan", peranBoleh: ["admin"] },
+    { href: "/dashboard/farmasi", label: "Farmasi (BHP)", peranBoleh: ["admin", "farmasi"] },
     { href: "/dashboard/pegawai", label: "Data Pegawai", peranBoleh: ["admin", "kapus"] },
   ];
 

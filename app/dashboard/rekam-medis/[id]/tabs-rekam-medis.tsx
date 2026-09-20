@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { simpanCatatanKlinisAction } from "./actions";
+import ChecklistTindakan from "./checklist-tindakan";
 
 type Pasien = {
   id: string;
@@ -28,6 +29,15 @@ type KunjunganHariIni = {
   catatanKlinis: string;
   tindakan: string;
 } | null;
+
+type Tarif = { id: string; nama_layanan: string; harga: number; kategori: string };
+type ResepBaris = { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number };
+type TindakanTercatat = {
+  id: string;
+  namaLayanan: string;
+  dicatatPada: string;
+  items: { namaBhp: string; jumlah: number; satuan: string }[];
+};
 
 function hitungUmur(tanggalLahir: string | null) {
   if (!tanggalLahir) return "—";
@@ -60,21 +70,28 @@ export default function TabsRekamMedis({
   kunjunganHariIni,
   riwayat,
   bolehTulis,
+  daftarTarif,
+  resepPerTarif,
+  tindakanTercatat,
 }: {
   pasien: Pasien;
   kunjunganHariIni: KunjunganHariIni;
   riwayat: Riwayat[];
   bolehTulis: boolean;
+  daftarTarif: Tarif[];
+  resepPerTarif: Record<string, ResepBaris[]>;
+  tindakanTercatat: TindakanTercatat[];
 }) {
-  const [tabAktif, setTabAktif] = useState<"ringkasan" | "catatan" | "riwayat">("ringkasan");
+  const [tabAktif, setTabAktif] = useState<"ringkasan" | "catatan" | "tindakan" | "riwayat">("ringkasan");
   const [state, formAction] = useFormState(simpanCatatanKlinisAction, null);
 
   return (
     <div className="rounded-card border border-sand-100 bg-white p-6">
-      <div className="flex gap-1 border-b border-sand-100 pb-3">
+      <div className="flex flex-wrap gap-1 border-b border-sand-100 pb-3">
         {[
           { id: "ringkasan", label: "Ringkasan" },
           { id: "catatan", label: "Catatan Klinis" },
+          { id: "tindakan", label: "Tindakan" },
           { id: "riwayat", label: "Riwayat Kunjungan" },
         ].map((tab) => (
           <button
@@ -182,6 +199,28 @@ export default function TabsRekamMedis({
 
                 <TombolSimpan />
               </form>
+            )}
+          </div>
+        )}
+
+        {tabAktif === "tindakan" && (
+          <div>
+            {!kunjunganHariIni ? (
+              <p className="rounded-sm bg-sand-50 px-4 py-6 text-center text-sm text-ink/50">
+                Belum ada kunjungan hari ini untuk pasien ini.
+              </p>
+            ) : !bolehTulis ? (
+              <p className="rounded-sm bg-sand-50 px-4 py-6 text-center text-sm text-ink/50">
+                Cuma tenaga klinis yang boleh mencatat tindakan.
+              </p>
+            ) : (
+              <ChecklistTindakan
+                kunjunganId={kunjunganHariIni.id}
+                pasienId={pasien.id}
+                daftarTarif={daftarTarif}
+                resepPerTarif={resepPerTarif}
+                tindakanTercatat={tindakanTercatat}
+              />
             )}
           </div>
         )}
