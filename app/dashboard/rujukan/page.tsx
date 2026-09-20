@@ -36,7 +36,7 @@ export default async function HalamanRujukan({
   let query = supabase
     .from("rujukan")
     .select(
-      "id, jenis, status, alasan, diagnosis, tujuan_eksternal, poli_tujuan, catatan_tindak_lanjut, dibuat_oleh, dibuat_pada, ke_lokasi_id, pasien:pasien_id (no_rm, nama_lengkap), dari:dari_lokasi_id (nama), ke:ke_lokasi_id (nama)"
+      "id, jenis, status, alasan, diagnosis, tujuan_eksternal, poli_tujuan, catatan_tindak_lanjut, dibuat_oleh, dibuat_pada, ke_lokasi_id, pasien_nama, pasien_no_rm_asal, dari:dari_lokasi_id (nama), ke:ke_lokasi_id (nama)"
     )
     .order("dibuat_pada", { ascending: false })
     .limit(100);
@@ -119,7 +119,6 @@ export default async function HalamanRujukan({
             </thead>
             <tbody>
               {(daftar ?? []).map((r) => {
-                const pasien = r.pasien as unknown as { no_rm: string; nama_lengkap: string } | null;
                 const dari = (r.dari as unknown as { nama: string } | null)?.nama ?? "—";
                 const ke = (r.ke as unknown as { nama: string } | null)?.nama;
                 const penerima = admin || (r.jenis === "internal" && !!r.ke_lokasi_id && r.ke_lokasi_id === pemanggil.lokasi_id);
@@ -137,8 +136,8 @@ export default async function HalamanRujukan({
                       {new Date(r.dibuat_pada).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="px-3 py-3">
-                      <p className="font-semibold text-ink">{pasien?.nama_lengkap ?? "—"}</p>
-                      <p className="text-xs text-ink/50">RM {pasien?.no_rm ?? "—"}</p>
+                      <p className="font-semibold text-ink">{r.pasien_nama}</p>
+                      <p className="text-xs text-ink/50">RM asal {r.pasien_no_rm_asal ?? "—"}</p>
                     </td>
                     <td className="px-3 py-3 text-ink/70">
                       <p>{dari}</p>

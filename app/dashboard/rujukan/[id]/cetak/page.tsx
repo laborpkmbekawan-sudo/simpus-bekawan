@@ -27,8 +27,7 @@ export default async function CetakRujukan({ params }: { params: { id: string } 
   const { data: rujukan } = await supabase.from("rujukan").select("*").eq("id", params.id).maybeSingle();
   if (!rujukan) notFound();
 
-  const [{ data: pasien }, { data: dari }, { data: ke }, { data: skrining }] = await Promise.all([
-    supabase.from("pasien").select("*").eq("id", rujukan.pasien_id).maybeSingle(),
+  const [{ data: dari }, { data: ke }, { data: skrining }] = await Promise.all([
     supabase.from("lokasi").select("nama").eq("id", rujukan.dari_lokasi_id).maybeSingle(),
     rujukan.ke_lokasi_id
       ? supabase.from("lokasi").select("nama").eq("id", rujukan.ke_lokasi_id).maybeSingle()
@@ -38,12 +37,7 @@ export default async function CetakRujukan({ params }: { params: { id: string } 
       : Promise.resolve({ data: null }),
   ]);
 
-  if (!pasien) notFound();
-
   const tujuan = rujukan.jenis === "internal" ? ke?.nama : rujukan.tujuan_eksternal;
-  const alamat = [pasien.alamat_jalan, pasien.alamat_rt && `RT ${pasien.alamat_rt}`, pasien.alamat_rw && `RW ${pasien.alamat_rw}`, pasien.alamat_desa, pasien.alamat_kecamatan, pasien.alamat_kabupaten]
-    .filter(Boolean)
-    .join(", ");
   const tanggal = new Date(rujukan.dibuat_pada).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
   const td =
@@ -86,12 +80,12 @@ export default async function CetakRujukan({ params }: { params: { id: string } 
 
         <table className="mb-4 w-full">
           <tbody>
-            <Baris label="Nama" isi={pasien.nama_lengkap} />
-            <Baris label="No. RM" isi={pasien.no_rm} />
-            <Baris label="Umur / Jenis kelamin" isi={`${umur(pasien.tanggal_lahir)} / ${pasien.jenis_kelamin === "L" ? "Laki-laki" : pasien.jenis_kelamin === "P" ? "Perempuan" : "—"}`} />
-            <Baris label="Alamat" isi={alamat} />
-            <Baris label="Penjamin" isi={pasien.jenis_penjamin === "bpjs" ? `BPJS${pasien.no_bpjs ? ` (${pasien.no_bpjs})` : ""}` : "Umum"} />
-            <Baris label="Alergi" isi={pasien.alergi} />
+            <Baris label="Nama" isi={rujukan.pasien_nama} />
+            <Baris label="No. RM" isi={rujukan.pasien_no_rm_asal} />
+            <Baris label="Umur / Jenis kelamin" isi={`${umur(rujukan.pasien_tanggal_lahir)} / ${rujukan.pasien_jenis_kelamin === "L" ? "Laki-laki" : rujukan.pasien_jenis_kelamin === "P" ? "Perempuan" : "—"}`} />
+            <Baris label="Alamat" isi={rujukan.pasien_alamat} />
+            <Baris label="Penjamin" isi={rujukan.pasien_jenis_penjamin === "bpjs" ? `BPJS${rujukan.pasien_no_bpjs ? ` (${rujukan.pasien_no_bpjs})` : ""}` : "Umum"} />
+            <Baris label="Alergi" isi={rujukan.pasien_alergi} />
           </tbody>
         </table>
 

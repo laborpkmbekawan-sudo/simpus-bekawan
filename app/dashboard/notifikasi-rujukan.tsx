@@ -182,7 +182,7 @@ export function ProviderNotifikasiRujukan({
 
     const { data, count, error } = await supabase
       .from("rujukan")
-      .select("id, diagnosis, alasan, pasien:pasien_id (no_rm, nama_lengkap), dari:dari_lokasi_id (nama)", {
+      .select("id, diagnosis, alasan, pasien_nama, pasien_no_rm_asal, dari:dari_lokasi_id (nama)", {
         count: "exact",
       })
       .eq("jenis", "internal")
@@ -196,13 +196,12 @@ export function ProviderNotifikasiRujukan({
     if (error || !data) return;
 
     const terbaru: ItemRujukan[] = data.map((r) => {
-      const pasien = r.pasien as unknown as { no_rm: string; nama_lengkap: string } | null;
       const dari = r.dari as unknown as { nama: string } | null;
       const ringkas = (r.diagnosis?.trim() || r.alasan || "").slice(0, 90);
       return {
         id: r.id,
-        namaPasien: pasien?.nama_lengkap ?? "Pasien",
-        noRm: pasien?.no_rm ?? "—",
+        namaPasien: r.pasien_nama ?? "Pasien",
+        noRm: r.pasien_no_rm_asal ?? "—",
         asal: dari?.nama ?? "lokasi lain",
         ringkas,
       };
