@@ -30,6 +30,63 @@ function gabungAlamat(p: {
   );
 }
 
+type Klinis = {
+  keluhan_utama: string | null;
+  td_sistolik: number | null;
+  td_diastolik: number | null;
+  nadi: number | null;
+  frekuensi_napas: number | null;
+  suhu: number | null;
+  spo2: number | null;
+  gcs: number | null;
+  berat_badan: number | null;
+  pemeriksaan_fisik: string | null;
+  pemeriksaan_penunjang: string | null;
+  terapi_diberikan: string | null;
+};
+
+// [kolom, label, min, max, harus bulat]
+const BATAS_TTV: [keyof Klinis, string, number, number, boolean][] = [
+  ["td_sistolik", "Tekanan darah sistolik", 40, 300, true],
+  ["td_diastolik", "Tekanan darah diastolik", 20, 200, true],
+  ["nadi", "Nadi", 20, 250, true],
+  ["frekuensi_napas", "Frekuensi napas", 5, 80, true],
+  ["suhu", "Suhu", 30, 45, false],
+  ["spo2", "SpO2", 50, 100, true],
+  ["gcs", "GCS", 3, 15, true],
+  ["berat_badan", "Berat badan", 0.5, 400, false],
+];
+
+// Kosong -> null. Bukan angka -> NaN (ditolak di validasi).
+function bacaAngka(formData: FormData, nama: string): number | null {
+  const mentah = String(formData.get(nama) ?? "").trim().replace(",", ".");
+  if (!mentah) return null;
+  const n = Number(mentah);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function bacaTeks(formData: FormData, nama: string): string | null {
+  return String(formData.get(nama) ?? "").trim() || null;
+}
+
+// Cek rentang tiap tanda vital. Return pesan error atau null kalau aman.
+function cekTtv(k: Klinis): string | null {
+  for (const [kolom, label, min, max, bulat] of BATAS_TTV) {
+    const nilai = k[kolom] as number | null;
+    if (nilai === null) continue;
+    if (Number.isNaN(nilai) || nilai < min || nilai > max || (bulat && !Number.isInteger(nilai))) {
+      return `${label} gak valid (isi angka ${min}-${max}${bulat ? ", bulat" : ""}).`;
+    }
+  }
+  if ((k.td_sistolik === null) !== (k.td_diastolik === null)) {
+    return "Isi tekanan darah lengkap (sistolik dan diastolik).";
+  }
+  if (k.td_sistolik !== null && k.td_diastolik !== null && k.td_sistolik <= k.td_diastolik) {
+    return "Sistolik harus lebih besar dari diastolik.";
+  }
+  return null;
+}
+
 // Identitas pasien yang disalin ke baris rujukan (snapshot).
 type SalinanPasien = {
   pasien_id: string | null;
@@ -57,6 +114,23 @@ export async function buatRujukanAction(_sebelum: Hasil | null, formData: FormDa
   const poliTujuan = String(formData.get("poli_tujuan") ?? "").trim();
   const diagnosis = String(formData.get("diagnosis") ?? "").trim();
   const alasan = String(formData.get("alasan") ?? "").trim();
+
+  const klinis: Klinis = {
+    keluhan_utama: bacaTeks(formData, "keluhan_utama"),
+    td_sistolik: bacaAngka(formData, "td_sistolik"),
+    td_diastolik: bacaAngka(formData, "td_diastolik"),
+    nadi: bacaAngka(formData, "nadi"),
+    frekuensi_napas: bacaAngka(formData, "frekuensi_napas"),
+    suhu: bacaAngka(formData, "suhu"),
+    spo2: bacaAngka(formData, "spo2"),
+    gcs: bacaAngka(formData, "gcs"),
+    berat_badan: bacaAngka(formData, "berat_badan"),
+    pemeriksaan_fisik: bacaTeks(formData, "pemeriksaan_fisik"),
+    pemeriksaan_penunjang: bacaTeks(formData, "pemeriksaan_penunjang"),
+    terapi_diberikan: bacaTeks(formData, "terapi_diberikan"),
+  };
+  const salahTtv = cekTtv(klinis);
+  if (salahTtv) return { pesan: salahTtv, sukses: false };
 
   // Lokasi asal: pegawai biasa = lokasi kerjanya sendiri (gak dipercaya dari
   // form). Admin boleh pilih bebas.
@@ -136,6 +210,24 @@ export async function buatRujukanAction(_sebelum: Hasil | null, formData: FormDa
       .limit(1)
       .maybeSingle();
 
+    // Dari Induk: bagian klinis yang dikosongkan diisi dari skrining kunjungan hari ini (kalau ada).
+    if (kunjunganHariIni) {
+      const { data: skrining } = await supabase
+        .from("skrining")
+        .select("*")
+        .eq("kunjungan_id", kunjunganHariIni.id)
+        .maybeSingle();
+      if (skrining) {
+        klinis.keluhan_utama ??= skrining.keluhan_utama ?? null;
+        klinis.td_sistolik ??= skrining.tekanan_darah_sistolik ?? null;
+        klinis.td_diastolik ??= skrining.tekanan_darah_diastolik ?? null;
+        klinis.nadi ??= skrining.nadi ?? null;
+        klinis.frekuensi_napas ??= skrining.frekuensi_napas ?? null;
+        klinis.suhu ??= skrining.suhu != null ? Number(skrining.suhu) : null;
+        klinis.berat_badan ??= skrining.berat_badan != null ? Number(skrining.berat_badan) : null;
+      }
+    }
+
     salinan = {
       pasien_id: pasien.id,
       kunjungan_id: kunjunganHariIni?.id ?? null,
@@ -151,8 +243,26 @@ export async function buatRujukanAction(_sebelum: Hasil | null, formData: FormDa
     };
   }
 
+  // Cek ulang setelah data skrining ikut masuk.
+  const salahTtvAkhir = cekTtv(klinis);
+  if (salahTtvAkhir) return { pesan: salahTtvAkhir, sukses: false };
+
+  // Rujukan ke rumah sakit/IGD wajib memuat kondisi klinis dasar.
+  if (jenis === "eksternal") {
+    const kurang: string[] = [];
+    if (!klinis.keluhan_utama) kurang.push("keluhan utama");
+    if (klinis.td_sistolik === null || klinis.td_diastolik === null) kurang.push("tekanan darah");
+    if (klinis.nadi === null) kurang.push("nadi");
+    if (klinis.frekuensi_napas === null) kurang.push("frekuensi napas");
+    if (klinis.suhu === null) kurang.push("suhu");
+    if (kurang.length > 0) {
+      return { pesan: `Rujukan ke rumah sakit wajib mencantumkan: ${kurang.join(", ")}.`, sukses: false };
+    }
+  }
+
   const { error } = await supabase.from("rujukan").insert({
     ...salinan,
+    ...klinis,
     jenis,
     dari_lokasi_id: dariLokasiId,
     ke_lokasi_id: jenis === "internal" ? keLokasiId : null,

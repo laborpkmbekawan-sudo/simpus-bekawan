@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ringkasTtv } from "@/lib/ttv";
 import TombolCetak from "./tombol-cetak";
 
 function umur(tanggalLahir: string | null) {
@@ -16,7 +17,7 @@ function Baris({ label, isi }: { label: string; isi: React.ReactNode }) {
     <tr>
       <td className="w-44 py-1 align-top text-ink/70">{label}</td>
       <td className="w-3 py-1 align-top">:</td>
-      <td className="py-1 align-top font-medium text-ink">{isi || "—"}</td>
+      <td className="whitespace-pre-line py-1 align-top font-medium text-ink">{isi || "—"}</td>
     </tr>
   );
 }
@@ -40,19 +41,18 @@ export default async function CetakRujukan({ params }: { params: { id: string } 
   const tujuan = rujukan.jenis === "internal" ? ke?.nama : rujukan.tujuan_eksternal;
   const tanggal = new Date(rujukan.dibuat_pada).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
-  const td =
-    skrining?.tekanan_darah_sistolik != null && skrining?.tekanan_darah_diastolik != null
-      ? `${skrining.tekanan_darah_sistolik}/${skrining.tekanan_darah_diastolik} mmHg`
-      : null;
-  const ttv = [
-    td && `TD ${td}`,
-    skrining?.nadi != null && `Nadi ${skrining.nadi} x/mnt`,
-    skrining?.suhu != null && `Suhu ${skrining.suhu} °C`,
-    skrining?.frekuensi_napas != null && `RR ${skrining.frekuensi_napas} x/mnt`,
-    skrining?.berat_badan != null && `BB ${skrining.berat_badan} kg`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // Data klinis dari rujukan; rujukan lama (sebelum tahap 6) jatuh ke skrining kunjungan.
+  const ttv = ringkasTtv({
+    td_sistolik: rujukan.td_sistolik ?? skrining?.tekanan_darah_sistolik,
+    td_diastolik: rujukan.td_diastolik ?? skrining?.tekanan_darah_diastolik,
+    nadi: rujukan.nadi ?? skrining?.nadi,
+    frekuensi_napas: rujukan.frekuensi_napas ?? skrining?.frekuensi_napas,
+    suhu: rujukan.suhu ?? skrining?.suhu,
+    spo2: rujukan.spo2,
+    gcs: rujukan.gcs,
+    berat_badan: rujukan.berat_badan ?? skrining?.berat_badan,
+  });
+  const keluhan = rujukan.keluhan_utama ?? skrining?.keluhan_utama;
 
   return (
     <div className="space-y-4">
@@ -91,9 +91,12 @@ export default async function CetakRujukan({ params }: { params: { id: string } 
 
         <table className="mb-6 w-full">
           <tbody>
-            <Baris label="Keluhan utama" isi={skrining?.keluhan_utama} />
+            <Baris label="Keluhan utama" isi={keluhan} />
             <Baris label="Tanda vital" isi={ttv} />
+            <Baris label="Pemeriksaan fisik" isi={rujukan.pemeriksaan_fisik} />
+            <Baris label="Pemeriksaan penunjang" isi={rujukan.pemeriksaan_penunjang} />
             <Baris label="Diagnosis" isi={rujukan.diagnosis} />
+            <Baris label="Terapi / tindakan yang sudah diberikan" isi={rujukan.terapi_diberikan} />
             <Baris label="Alasan dirujuk" isi={rujukan.alasan} />
           </tbody>
         </table>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import { ambilSemuaLokasi } from "@/lib/lokasi";
+import { ringkasTtv } from "@/lib/ttv";
 import FormRujukan from "./form-rujukan";
 import AksiRujukan from "./aksi-rujukan";
 
@@ -36,7 +37,7 @@ export default async function HalamanRujukan({
   let query = supabase
     .from("rujukan")
     .select(
-      "id, jenis, status, alasan, diagnosis, tujuan_eksternal, poli_tujuan, catatan_tindak_lanjut, dibuat_oleh, dibuat_pada, ke_lokasi_id, pasien_nama, pasien_no_rm_asal, dari:dari_lokasi_id (nama), ke:ke_lokasi_id (nama)"
+      "id, jenis, status, alasan, diagnosis, tujuan_eksternal, poli_tujuan, catatan_tindak_lanjut, dibuat_oleh, dibuat_pada, ke_lokasi_id, pasien_nama, pasien_no_rm_asal, keluhan_utama, td_sistolik, td_diastolik, nadi, frekuensi_napas, suhu, spo2, gcs, berat_badan, dari:dari_lokasi_id (nama), ke:ke_lokasi_id (nama)"
     )
     .order("dibuat_pada", { ascending: false })
     .limit(100);
@@ -153,6 +154,8 @@ export default async function HalamanRujukan({
                     <td className="max-w-xs px-3 py-3 text-ink/80">
                       {r.diagnosis && <p className="font-medium">{r.diagnosis}</p>}
                       <p>{r.alasan}</p>
+                      {r.keluhan_utama && <p className="mt-1 text-xs text-ink/60">Keluhan: {r.keluhan_utama}</p>}
+                      {ringkasTtv(r) && <p className="mt-0.5 text-xs text-ink/60">{ringkasTtv(r)}</p>}
                       {r.catatan_tindak_lanjut && (
                         <p className="mt-1 text-xs text-teal-700">Tindak lanjut: {r.catatan_tindak_lanjut}</p>
                       )}

@@ -59,6 +59,8 @@ export default function FormRujukan({
   // Dari Induk: pasien dicari lewat No. RM Induk.
   const manual = semuaLokasi.find((l) => l.id === dariId)?.tipe === "pustu";
   const tujuanInternal = semuaLokasi.filter((l) => l.id !== dariId);
+  // Rujukan ke rumah sakit wajib memuat kondisi klinis dasar.
+  const bintang = jenis === "eksternal" ? " *" : "";
   const inputCls = "w-full rounded-sm border border-sand-100 bg-[#FBFDFF] px-3.5 py-2.5 text-sm";
 
   return (
@@ -209,6 +211,73 @@ export default function FormRujukan({
         </div>
       )}
 
+      <fieldset className="space-y-4 rounded-sm border border-sand-100 bg-sand-50/60 p-4">
+        <legend className="px-1 text-sm font-bold text-ink/80">Kondisi klinis pasien</legend>
+        <p className="text-xs text-ink/55">
+          {jenis === "eksternal"
+            ? "Rujukan ke rumah sakit wajib mencantumkan keluhan utama, tekanan darah, nadi, napas, dan suhu (tanda *)."
+            : "Disarankan diisi supaya petugas penerima langsung tahu kondisi pasien."}
+          {!manual && " Kosongkan bagian ini untuk memakai data skrining kunjungan hari ini (kalau ada)."}
+        </p>
+
+        <div className="space-y-1.5">
+          <label htmlFor="keluhan_utama" className="text-sm font-bold text-ink/80">Keluhan utama{bintang}</label>
+          <textarea id="keluhan_utama" name="keluhan_utama" rows={2} className={inputCls} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="space-y-1.5">
+            <label htmlFor="td_sistolik" className="text-sm font-bold text-ink/80">TD sistolik (mmHg){bintang}</label>
+            <input id="td_sistolik" name="td_sistolik" type="number" inputMode="numeric" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="td_diastolik" className="text-sm font-bold text-ink/80">TD diastolik (mmHg){bintang}</label>
+            <input id="td_diastolik" name="td_diastolik" type="number" inputMode="numeric" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="nadi" className="text-sm font-bold text-ink/80">Nadi (x/mnt){bintang}</label>
+            <input id="nadi" name="nadi" type="number" inputMode="numeric" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="frekuensi_napas" className="text-sm font-bold text-ink/80">Napas / RR (x/mnt){bintang}</label>
+            <input id="frekuensi_napas" name="frekuensi_napas" type="number" inputMode="numeric" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="suhu" className="text-sm font-bold text-ink/80">Suhu (°C){bintang}</label>
+            <input id="suhu" name="suhu" type="number" step="0.1" inputMode="decimal" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="spo2" className="text-sm font-bold text-ink/80">SpO2 (%)</label>
+            <input id="spo2" name="spo2" type="number" inputMode="numeric" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="gcs" className="text-sm font-bold text-ink/80">GCS (3-15)</label>
+            <input id="gcs" name="gcs" type="number" inputMode="numeric" className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="berat_badan" className="text-sm font-bold text-ink/80">Berat badan (kg)</label>
+            <input id="berat_badan" name="berat_badan" type="number" step="0.1" inputMode="decimal" className={inputCls} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="pemeriksaan_fisik" className="text-sm font-bold text-ink/80">Pemeriksaan fisik (opsional)</label>
+            <textarea id="pemeriksaan_fisik" name="pemeriksaan_fisik" rows={3} className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="pemeriksaan_penunjang" className="text-sm font-bold text-ink/80">Pemeriksaan penunjang (opsional)</label>
+            <textarea
+              id="pemeriksaan_penunjang"
+              name="pemeriksaan_penunjang"
+              rows={3}
+              placeholder="contoh: GDS 320 mg/dL, EKG sinus takikardi"
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </fieldset>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
           <label htmlFor="diagnosis" className="text-sm font-bold text-ink/80">Diagnosis</label>
@@ -223,6 +292,17 @@ export default function FormRujukan({
             className={inputCls}
           />
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="terapi_diberikan" className="text-sm font-bold text-ink/80">Terapi / tindakan yang sudah diberikan (opsional)</label>
+        <textarea
+          id="terapi_diberikan"
+          name="terapi_diberikan"
+          rows={2}
+          placeholder="contoh: infus RL 500 ml, O2 nasal kanul 3 lpm, paracetamol 500 mg"
+          className={inputCls}
+        />
       </div>
 
       {state?.pesan && (
