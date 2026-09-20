@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { buatRujukanAction } from "./actions";
+import PilihPasien, { type PasienTerdaftar } from "./pilih-pasien";
 
 type Lokasi = { id: string; nama: string; tipe: string };
 
@@ -24,18 +25,21 @@ export default function FormRujukan({
   lokasiSaya,
   admin,
   saranTujuan,
-  noRmAwal,
+  terdaftarHariIni,
+  pasienAwal,
 }: {
   semuaLokasi: Lokasi[];
   lokasiSaya: Lokasi | null;
   admin: boolean;
   saranTujuan: string[];
-  noRmAwal: string;
+  terdaftarHariIni: PasienTerdaftar[];
+  pasienAwal: { noRm: string; nama: string; kunjunganId: string | null } | null;
 }) {
   const [state, formAction] = useFormState(buatRujukanAction, null);
   const [jenis, setJenis] = useState<"internal" | "eksternal">("eksternal");
   const [dariAdmin, setDariAdmin] = useState(semuaLokasi[0]?.id ?? "");
   const [penjamin, setPenjamin] = useState<"umum" | "bpjs">("umum");
+  const [ulang, setUlang] = useState(0); // naik tiap rujukan tersimpan, mengosongkan pilihan pasien
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -43,6 +47,7 @@ export default function FormRujukan({
       formRef.current?.reset();
       setJenis("eksternal");
       setPenjamin("umum");
+      setUlang((n) => n + 1);
     }
   }, [state]);
 
@@ -65,13 +70,15 @@ export default function FormRujukan({
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
-      <div className={`grid grid-cols-1 gap-4 ${manual ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
-        {!manual && (
-          <div className="space-y-1.5">
-            <label htmlFor="no_rm" className="text-sm font-bold text-ink/80">No. RM pasien</label>
-            <input id="no_rm" name="no_rm" defaultValue={noRmAwal} placeholder="contoh: 00012" className={inputCls} />
-          </div>
-        )}
+      {!manual && (
+        <PilihPasien
+          key={ulang}
+          terdaftarHariIni={terdaftarHariIni}
+          awal={ulang === 0 ? pasienAwal : null}
+        />
+      )}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
         <div className="space-y-1.5">
           <label htmlFor="dari_lokasi" className="text-sm font-bold text-ink/80">Dirujuk dari</label>

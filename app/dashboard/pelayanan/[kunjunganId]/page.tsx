@@ -270,7 +270,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/dashboard/rujukan?rm=${pasien.no_rm}`}
+              href={`/dashboard/rujukan?rm=${pasien.no_rm}&kunjungan=${kunjungan.id}`}
               className="rounded-sm border border-sand-100 px-2.5 py-1 text-xs font-semibold text-clay-700 hover:bg-sand-50"
             >
               Rujuk

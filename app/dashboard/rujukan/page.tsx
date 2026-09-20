@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
-import { ambilSemuaLokasi } from "@/lib/lokasi";
+import { ambilSemuaLokasi, normalisasiNoRm } from "@/lib/lokasi";
 import { ringkasTtv } from "@/lib/ttv";
 import FormRujukan from "./form-rujukan";
 import AksiRujukan from "./aksi-rujukan";
+import type { PasienTerdaftar } from "./pilih-pasien";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -17,7 +18,7 @@ const WARNA_STATUS: Record<string, string> = {
 export default async function HalamanRujukan({
   searchParams,
 }: {
-  searchParams: { tab?: string; rm?: string };
+  searchParams: { tab?: string; rm?: string; kunjungan?: string };
 }) {
   const pemanggil = await getPegawaiSaya();
   if (!pemanggil) return null;
@@ -33,6 +34,67 @@ export default async function HalamanRujukan({
   const semuaLokasi = await ambilSemuaLokasi();
   const lokasiSaya = semuaLokasi.find((l) => l.id === pemanggil.lokasi_id) ?? null;
   const kosong = "00000000-0000-0000-0000-000000000000";
+
+  // Pemilih pasien (rujukan dari Induk): pasien yang didaftarkan petugas
+  // pendaftaran hari ini, dibatasi ke klaster yang boleh diakses (admin: semua).
+  let terdaftarHariIni: PasienTerdaftar[] = [];
+  let pasienAwal: { noRm: string; nama: string; kunjunganId: string | null } | null = null;
+
+  if (klinis && (admin || lokasiSaya?.tipe !== "pustu")) {
+    const hariIni = new Date().toISOString().slice(0, 10);
+    const [{ data: kunjunganMentah }, { data: aksesSaya }] = await Promise.all([
+      supabase
+        .from("kunjungan")
+        .select(
+          "id, nomor_antrian, status, klaster_tujuan_id, pasien:pasien_id (no_rm, nama_lengkap), klaster:klaster_tujuan_id (nama, kode_antrian)"
+        )
+        .eq("tanggal", hariIni)
+        .order("nomor_antrian", { ascending: true }),
+      admin
+        ? Promise.resolve({ data: [] as { klaster_id: string }[] })
+        : supabase.from("akses_klaster").select("klaster_id").eq("pegawai_id", pemanggil.id),
+    ]);
+
+    const klasterBoleh = new Set((aksesSaya ?? []).map((a) => a.klaster_id));
+    const urutStatus: Record<string, number> = { dipanggil: 0, menunggu: 1, selesai: 2 };
+
+    terdaftarHariIni = (kunjunganMentah ?? [])
+      .filter((k) => admin || klasterBoleh.has(k.klaster_tujuan_id))
+      .map((k) => {
+        const pasien = k.pasien as unknown as { no_rm: string; nama_lengkap: string } | null;
+        const klaster = k.klaster as unknown as { nama: string; kode_antrian: string | null } | null;
+        return {
+          kunjunganId: k.id as string,
+          noRm: pasien?.no_rm ?? "",
+          nama: pasien?.nama_lengkap ?? "—",
+          nomorTampil: klaster?.kode_antrian
+            ? `${klaster.kode_antrian}-${String(k.nomor_antrian).padStart(2, "0")}`
+            : String(k.nomor_antrian),
+          namaKlaster: klaster?.nama ?? "—",
+          status: k.status as string,
+        };
+      })
+      .filter((p) => p.noRm)
+      .sort((a, b) => (urutStatus[a.status] ?? 3) - (urutStatus[b.status] ?? 3));
+
+    // Datang dari tombol "Rujuk" di halaman Pelayanan: pasien langsung terpilih.
+    const rmAwal = normalisasiNoRm(searchParams.rm ?? "");
+    if (rmAwal) {
+      const cocok =
+        terdaftarHariIni.find((p) => p.kunjunganId === searchParams.kunjungan && p.noRm === rmAwal) ??
+        terdaftarHariIni.find((p) => p.noRm === rmAwal);
+      if (cocok) {
+        pasienAwal = { noRm: cocok.noRm, nama: cocok.nama, kunjunganId: cocok.kunjunganId };
+      } else {
+        const { data: pasien } = await supabase
+          .from("pasien")
+          .select("no_rm, nama_lengkap")
+          .eq("no_rm", rmAwal)
+          .maybeSingle();
+        if (pasien) pasienAwal = { noRm: pasien.no_rm, nama: pasien.nama_lengkap, kunjunganId: null };
+      }
+    }
+  }
 
   let query = supabase
     .from("rujukan")
@@ -82,7 +144,8 @@ export default async function HalamanRujukan({
             lokasiSaya={lokasiSaya}
             admin={admin}
             saranTujuan={saranTujuan}
-            noRmAwal={searchParams.rm ?? ""}
+            terdaftarHariIni={terdaftarHariIni}
+            pasienAwal={pasienAwal}
           />
         ) : (
           <p className="rounded-sm bg-sand-50 px-4 py-4 text-sm text-ink/60">

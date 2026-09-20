@@ -195,20 +195,36 @@ export async function buatRujukanAction(_sebelum: Hasil | null, formData: FormDa
     };
   } else {
     const noRm = normalisasiNoRm(String(formData.get("no_rm") ?? ""));
-    if (!noRm) return { pesan: "Isi No. RM pasien.", sukses: false };
+    if (!noRm) return { pesan: "Pilih pasien yang mau dirujuk.", sukses: false };
 
     const { data: pasien } = await supabase.from("pasien").select("*").eq("no_rm", noRm).maybeSingle();
     if (!pasien) return { pesan: `Pasien dengan No. RM ${noRm} gak ditemukan.`, sukses: false };
 
-    const hariIni = new Date().toISOString().slice(0, 10);
-    const { data: kunjunganHariIni } = await supabase
-      .from("kunjungan")
-      .select("id")
-      .eq("pasien_id", pasien.id)
-      .eq("tanggal", hariIni)
-      .order("dibuat_pada", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Kunjungan yang dipilih di form (harus milik pasien itu). Kalau tidak ada,
+    // pakai kunjungan terbaru hari ini.
+    const kunjunganDipilih = String(formData.get("kunjungan_id") ?? "");
+    let kunjunganHariIni: { id: string } | null = null;
+    if (kunjunganDipilih) {
+      const { data: k } = await supabase
+        .from("kunjungan")
+        .select("id")
+        .eq("id", kunjunganDipilih)
+        .eq("pasien_id", pasien.id)
+        .maybeSingle();
+      kunjunganHariIni = k ?? null;
+    }
+    if (!kunjunganHariIni) {
+      const hariIni = new Date().toISOString().slice(0, 10);
+      const { data: k } = await supabase
+        .from("kunjungan")
+        .select("id")
+        .eq("pasien_id", pasien.id)
+        .eq("tanggal", hariIni)
+        .order("dibuat_pada", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      kunjunganHariIni = k ?? null;
+    }
 
     // Dari Induk: bagian klinis yang dikosongkan diisi dari skrining kunjungan hari ini (kalau ada).
     if (kunjunganHariIni) {
@@ -320,4 +336,26 @@ export async function ubahStatusRujukanAction(
 
   await supabase.from("rujukan").update(perubahan).eq("id", id);
   revalidatePath("/dashboard/rujukan");
+}
+
+// Pencarian pasien untuk pemilih di form rujukan (nama, No. RM, atau NIK).
+export async function cariPasienAction(
+  kata: string
+): Promise<{ noRm: string; nama: string; nik: string | null }[]> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_KLINIS.includes(pemanggil.peran)) return [];
+
+  // Buang karakter yang merusak sintaks filter PostgREST (koma, kurung, dst).
+  const bersih = kata.replace(/[^\p{L}\p{N}\s.'-]/gu, "").trim();
+  if (bersih.length < 2) return [];
+
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("pasien")
+    .select("no_rm, nama_lengkap, nik")
+    .or(`nama_lengkap.ilike.%${bersih}%,no_rm.ilike.%${bersih}%,nik.ilike.%${bersih}%`)
+    .order("nama_lengkap", { ascending: true })
+    .limit(10);
+
+  return (data ?? []).map((p) => ({ noRm: p.no_rm, nama: p.nama_lengkap, nik: p.nik ?? null }));
 }
