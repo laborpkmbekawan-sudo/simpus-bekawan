@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPegawaiSaya } from "@/lib/supabase/server";
 import TombolKeluar from "./tombol-keluar";
+import MenuSamping from "./menu-samping";
 
 const LABEL_PERAN: Record<string, string> = {
   admin: "Admin",
@@ -32,22 +32,10 @@ export default async function LayoutDashboard({
     redirect("/login?alasan=perlu-login");
   }
 
-  const menu = [
-    { href: "/dashboard", label: "Beranda" },
-    { href: "/dashboard/pasien", label: "Daftar Pasien" },
-    { href: "/dashboard/kunjungan-hari-ini", label: "Kunjungan Hari Ini" },
-    { href: "/dashboard/antrian", label: "Antrian" },
-    { href: "/dashboard/rekam-medis", label: "Rekam Medis" },
-    { href: "/dashboard/kasir", label: "Kasir", peranBoleh: ["admin", "loket_rm_kasir"] },
-    { href: "/dashboard/kasir/tarif", label: "Tarif & Tindakan", peranBoleh: ["admin"] },
-    { href: "/dashboard/farmasi", label: "Farmasi (BHP)", peranBoleh: ["admin", "farmasi"] },
-    { href: "/dashboard/pegawai", label: "Data Pegawai", peranBoleh: ["admin", "kapus"] },
-  ];
-
   return (
-    <div className="grid min-h-screen grid-cols-[260px_1fr] bg-sand-50">
+    <div className="grid min-h-screen grid-cols-[260px_1fr] bg-sand-50 print:block">
       <aside
-        className="sticky top-0 flex h-screen flex-col justify-between overflow-y-auto px-4 py-6 text-white"
+        className="sticky top-0 flex h-screen flex-col justify-between overflow-y-auto px-4 py-6 text-white print:hidden"
         style={{ background: "linear-gradient(180deg, #0D2942 0%, #123D5B 55%, #0F766E 100%)" }}
       >
         <div>
@@ -59,20 +47,7 @@ export default async function LayoutDashboard({
               Akun Petugas
             </div>
           </div>
-          <nav className="mt-4 space-y-1">
-            {menu
-              .filter((item) => !item.peranBoleh || item.peranBoleh.includes(pegawai.peran))
-              .map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block rounded-xl border-l-[3px] border-transparent px-3.5 py-3 text-sm font-medium
-                             text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  {item.label}
-                </Link>
-              ))}
-          </nav>
+          <MenuSamping peran={pegawai.peran} />
         </div>
 
         <div className="border-t border-white/15 px-3 pt-4">
@@ -84,7 +59,7 @@ export default async function LayoutDashboard({
         </div>
       </aside>
 
-      <main className="min-w-0 px-10 py-10">{children}</main>
+      <main className="min-w-0 px-10 py-10 print:p-0">{children}</main>
     </div>
   );
 }

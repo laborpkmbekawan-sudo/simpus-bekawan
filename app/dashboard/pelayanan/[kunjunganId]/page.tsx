@@ -269,6 +269,12 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/dashboard/rujukan?rm=${pasien.no_rm}`}
+              className="rounded-sm border border-sand-100 px-2.5 py-1 text-xs font-semibold text-clay-700 hover:bg-sand-50"
+            >
+              Rujuk
+            </Link>
             <span className="rounded-sm bg-ink/5 px-2.5 py-1 text-xs font-semibold uppercase text-ink/70">
               {penjamin === "bpjs" ? "BPJS" : "Umum"}
             </span>
