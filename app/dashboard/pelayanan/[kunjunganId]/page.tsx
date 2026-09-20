@@ -82,22 +82,50 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
 
   const supabase = createClient();
 
-  const { data: kunjungan } = await supabase
+  // Query dipecah + select("*") biar satu kolom yang beda di database
+  // gak bikin seluruh halaman 404 diam-diam. Error asli ditampilkan.
+  const { data: kunjungan, error: errKunjungan } = await supabase
     .from("kunjungan")
-    .select(
-      "id, pasien_id, nomor_antrian, jenis_kunjungan, status, tanggal, jenis_penjamin, klaster_tujuan_id, pasien:pasien_id (id, no_rm, nama_lengkap, tanggal_lahir, jenis_kelamin, alergi, no_bpjs, jenis_penjamin), klaster:klaster_tujuan_id (nama, kode_antrian), skrining (keluhan_utama, tekanan_darah_sistolik, tekanan_darah_diastolik, nadi, suhu, frekuensi_napas, berat_badan, tinggi_badan, prioritas_triase, catatan)"
-    )
+    .select("*")
     .eq("id", params.kunjunganId)
-    .single();
+    .maybeSingle();
 
+  if (errKunjungan) {
+    return (
+      <Pesan
+        judul="Gagal memuat kunjungan"
+        isi={`${errKunjungan.message}${errKunjungan.hint ? ` (${errKunjungan.hint})` : ""}`}
+        href="/dashboard/antrian"
+        labelHref="Kembali ke Antrian"
+      />
+    );
+  }
   if (!kunjungan) notFound();
 
-  const pasien = kunjungan.pasien as unknown as Pasien | null;
-  const klaster = kunjungan.klaster as unknown as { nama: string; kode_antrian: string | null } | null;
-  const skriningMentah = kunjungan.skrining as unknown as Skrining | Skrining[] | null;
-  const skrining = Array.isArray(skriningMentah) ? skriningMentah[0] ?? null : skriningMentah;
+  const [
+    { data: pasienData, error: errPasien },
+    { data: klasterData },
+    { data: skriningData },
+  ] = await Promise.all([
+    supabase.from("pasien").select("*").eq("id", kunjungan.pasien_id).maybeSingle(),
+    supabase.from("klaster").select("nama, kode_antrian").eq("id", kunjungan.klaster_tujuan_id).maybeSingle(),
+    supabase.from("skrining").select("*").eq("kunjungan_id", kunjungan.id).maybeSingle(),
+  ]);
 
-  if (!pasien) notFound();
+  if (errPasien || !pasienData) {
+    return (
+      <Pesan
+        judul="Data pasien tidak terbaca"
+        isi={errPasien?.message ?? "Pasien untuk kunjungan ini tidak ditemukan."}
+        href="/dashboard/antrian"
+        labelHref="Kembali ke Antrian"
+      />
+    );
+  }
+
+  const pasien = pasienData as unknown as Pasien;
+  const klaster = klasterData as { nama: string; kode_antrian: string | null } | null;
+  const skrining = skriningData as unknown as Skrining | null;
 
   if (!PERAN_KLINIS.includes(pemanggil.peran)) {
     return (
