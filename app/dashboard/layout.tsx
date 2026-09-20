@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { getPegawaiSaya } from "@/lib/supabase/server";
 import TombolKeluar from "./tombol-keluar";
 import MenuSamping from "./menu-samping";
+import { KontrolNotifikasiRujukan, ProviderNotifikasiRujukan } from "./notifikasi-rujukan";
+
+// Peran yang menerima notifikasi rujukan masuk (di lokasi tujuannya).
+const PERAN_PENERIMA_RUJUKAN = ["dokter", "dokter_gigi", "perawat", "bidan"];
 
 const LABEL_PERAN: Record<string, string> = {
   admin: "Admin",
@@ -32,7 +36,10 @@ export default async function LayoutDashboard({
     redirect("/login?alasan=perlu-login");
   }
 
+  const terimaNotifRujukan = PERAN_PENERIMA_RUJUKAN.includes(pegawai.peran) && !!pegawai.lokasi_id;
+
   return (
+    <ProviderNotifikasiRujukan aktif={terimaNotifRujukan} lokasiId={pegawai.lokasi_id ?? null}>
     <div className="grid min-h-screen grid-cols-[260px_1fr] bg-sand-50 print:block">
       <aside
         className="sticky top-0 flex h-screen flex-col justify-between overflow-y-auto px-4 py-6 text-white print:hidden"
@@ -48,6 +55,7 @@ export default async function LayoutDashboard({
             </div>
           </div>
           <MenuSamping peran={pegawai.peran} />
+          <KontrolNotifikasiRujukan />
         </div>
 
         <div className="border-t border-white/15 px-3 pt-4">
@@ -61,5 +69,6 @@ export default async function LayoutDashboard({
 
       <main className="min-w-0 px-10 py-10 print:p-0">{children}</main>
     </div>
+    </ProviderNotifikasiRujukan>
   );
 }

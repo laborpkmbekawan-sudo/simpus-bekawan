@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useNotifikasiRujukan } from "./notifikasi-rujukan";
 
-type Item = { href: string; label: string; peranBoleh?: string[] };
+type Item = { href: string; label: string; peranBoleh?: string[]; lencanaRujukan?: boolean };
 type Grup = { label: string; href?: string; peranBoleh?: string[]; anak?: Item[] };
 
 // Menu bertingkat: grup dengan `anak` jadi dropdown, grup dengan `href`
@@ -22,7 +23,7 @@ const MENU: Grup[] = [
     label: "Pelayanan & Rujukan",
     anak: [
       { href: "/dashboard/antrian", label: "Antrian" },
-      { href: "/dashboard/rujukan", label: "Rujukan" },
+      { href: "/dashboard/rujukan", label: "Rujukan", lencanaRujukan: true },
     ],
   },
   { label: "Rekam Medis", href: "/dashboard/rekam-medis" },
@@ -49,8 +50,20 @@ function cocok(pathname: string, href: string, semuaHref: string[]) {
 const CLS_ITEM =
   "block rounded-xl border-l-[3px] px-3.5 py-3 text-sm font-medium transition-colors hover:bg-white/10 hover:text-white";
 
+function Lencana({ jumlah }: { jumlah: number }) {
+  return (
+    <span
+      className="ml-2 min-w-[20px] rounded-full bg-clay-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white"
+      aria-label={`${jumlah} rujukan belum diterima`}
+    >
+      {jumlah > 99 ? "99+" : jumlah}
+    </span>
+  );
+}
+
 export default function MenuSamping({ peran }: { peran: string }) {
   const pathname = usePathname();
+  const { jumlah: jumlahRujukan } = useNotifikasiRujukan();
 
   const boleh = (p?: string[]) => !p || p.includes(peran);
   const grupTampil = MENU.filter((g) => boleh(g.peranBoleh))
@@ -95,8 +108,13 @@ export default function MenuSamping({ peran }: { peran: string }) {
               }`}
             >
               <span>{g.label}</span>
-              <span className={`text-xs transition-transform ${terbuka ? "rotate-180" : ""}`} aria-hidden>
-                ⌄
+              <span className="flex items-center">
+                {!terbuka && jumlahRujukan > 0 && anak.some((a) => a.lencanaRujukan) && (
+                  <Lencana jumlah={jumlahRujukan} />
+                )}
+                <span className={`ml-2 text-xs transition-transform ${terbuka ? "rotate-180" : ""}`} aria-hidden>
+                  ⌄
+                </span>
               </span>
             </button>
             {terbuka && (
@@ -107,11 +125,12 @@ export default function MenuSamping({ peran }: { peran: string }) {
                     <Link
                       key={a.href}
                       href={a.href}
-                      className={`block rounded-lg px-3 py-2 text-[13px] transition-colors hover:bg-white/10 hover:text-white ${
+                      className={`flex items-center justify-between rounded-lg px-3 py-2 text-[13px] transition-colors hover:bg-white/10 hover:text-white ${
                         aktif ? "bg-white/15 font-semibold text-white" : "text-white/70"
                       }`}
                     >
-                      {a.label}
+                      <span>{a.label}</span>
+                      {a.lencanaRujukan && jumlahRujukan > 0 && <Lencana jumlah={jumlahRujukan} />}
                     </Link>
                   );
                 })}

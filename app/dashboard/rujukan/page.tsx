@@ -125,7 +125,14 @@ export default async function HalamanRujukan({
                 const penerima = admin || (r.jenis === "internal" && !!r.ke_lokasi_id && r.ke_lokasi_id === pemanggil.lokasi_id);
                 const pembuat = admin || r.dibuat_oleh === pemanggil.id;
                 return (
-                  <tr key={r.id} className="border-b border-sand-100/70 align-top last:border-0">
+                  <tr
+                    key={r.id}
+                    className={`border-b border-sand-100/70 align-top last:border-0 ${
+                      r.status === "dibuat" && r.jenis === "internal" && r.ke_lokasi_id === pemanggil.lokasi_id
+                        ? "bg-clay-600/5"
+                        : ""
+                    }`}
+                  >
                     <td className="whitespace-nowrap px-3 py-3 text-ink/70">
                       {new Date(r.dibuat_pada).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </td>
