@@ -177,7 +177,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
-      .select("subjektif, objektif, diagnosis, tindakan")
+      .select("subjektif, objektif, diagnosis, kode_icd10, tindakan")
       .eq("kunjungan_id", kunjungan.id)
       .maybeSingle(),
     supabase
@@ -339,6 +339,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           subjektifDariSkrining={!catatan?.subjektif && !!skrining?.keluhan_utama}
           objektif={catatan?.objektif ?? ""}
           diagnosis={catatan?.diagnosis ?? ""}
+          kodeIcd10={catatan?.kode_icd10 ?? ""}
           tindakan={catatan?.tindakan ?? ""}
         />
       </section>

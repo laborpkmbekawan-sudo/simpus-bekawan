@@ -42,11 +42,14 @@ const MENU: Grup[] = [
     anak: [
       { href: "/dashboard/laporan/kasir", label: "Laporan Kasir" },
       { href: "/dashboard/laporan/pelayanan", label: "Laporan Pelayanan" },
+      { href: "/dashboard/laporan/lb1", label: "Laporan LB1" },
+      { href: "/dashboard/laporan/spm", label: "Laporan SPM", peranBoleh: ["admin", "kapus"] },
       { href: "/dashboard/laporan/kepuasan", label: "Laporan Kepuasan", peranBoleh: ["admin", "kapus"] },
       { href: "/dashboard/laporan/aktivitas", label: "Log Aktivitas", peranBoleh: ["admin", "kapus"] },
     ],
   },
   { label: "Data Pegawai", href: "/dashboard/pegawai", peranBoleh: ["admin", "kapus"] },
+  { label: "Master Data", href: "/dashboard/master-data", peranBoleh: ["admin"] },
 ];
 
 function cocok(pathname: string, href: string, semuaHref: string[]) {

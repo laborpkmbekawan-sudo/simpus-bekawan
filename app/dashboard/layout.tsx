@@ -61,7 +61,13 @@ export default async function LayoutDashboard({
         <div className="border-t border-white/15 px-3 pt-4">
           <p className="text-sm font-medium text-white">{pegawai.nama_lengkap}</p>
           <p className="text-xs text-white/55">{LABEL_PERAN[pegawai.peran] ?? pegawai.peran}</p>
-          <div className="mt-3">
+          <div className="mt-3 flex items-center gap-3">
+            <a
+              href="/dashboard/pengaturan-akun"
+              className="text-sm text-white/60 underline decoration-white/25 underline-offset-2 hover:text-white"
+            >
+              Pengaturan Akun
+            </a>
             <TombolKeluar />
           </div>
         </div>

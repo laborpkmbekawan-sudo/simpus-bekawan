@@ -53,6 +53,7 @@ export default function FormCatatanKlinis({
   subjektifDariSkrining,
   objektif,
   diagnosis,
+  kodeIcd10,
   tindakan,
 }: {
   kunjunganId: string;
@@ -60,6 +61,7 @@ export default function FormCatatanKlinis({
   subjektifDariSkrining: boolean;
   objektif: string;
   diagnosis: string;
+  kodeIcd10: string;
   tindakan: string;
 }) {
   const [state, formAction] = useFormState(simpanCatatanKlinisAction, null);
@@ -105,6 +107,18 @@ export default function FormCatatanKlinis({
 
       <Bagian huruf="A" judul="Asesmen" petunjuk="Diagnosis kerja / diagnosis banding.">
         <input id="diagnosis" name="diagnosis" defaultValue={diagnosis} aria-label="Asesmen" className={inputCls} />
+        <div className="pt-1.5">
+          <label htmlFor="kode_icd10" className="mb-1 block text-xs text-ink/50">
+            Kode ICD-10 (opsional, buat rekap Laporan LB1)
+          </label>
+          <input
+            id="kode_icd10"
+            name="kode_icd10"
+            defaultValue={kodeIcd10}
+            placeholder="contoh: J06.9"
+            className={`${inputCls} max-w-[180px] uppercase`}
+          />
+        </div>
       </Bagian>
 
       <Bagian huruf="P" judul="Plan" petunjuk="Terapi, edukasi, dan rencana tindak lanjut.">

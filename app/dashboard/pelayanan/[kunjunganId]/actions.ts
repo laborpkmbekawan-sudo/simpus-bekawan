@@ -51,6 +51,7 @@ export async function simpanCatatanKlinisAction(_sebelum: Hasil | null, formData
   const subjektif = String(formData.get("subjektif") ?? "").trim();
   const objektif = String(formData.get("objektif") ?? "").trim();
   const diagnosis = String(formData.get("diagnosis") ?? "").trim();
+  const kodeIcd10 = String(formData.get("kode_icd10") ?? "").trim().toUpperCase();
   const tindakan = String(formData.get("tindakan") ?? "").trim();
 
   const { error } = await akses.supabase.from("catatan_klinis").upsert(
@@ -59,6 +60,7 @@ export async function simpanCatatanKlinisAction(_sebelum: Hasil | null, formData
       subjektif: subjektif || null,
       objektif: objektif || null,
       diagnosis: diagnosis || null,
+      kode_icd10: kodeIcd10 || null,
       tindakan: tindakan || null,
       dibuat_oleh: akses.pemanggil.id,
     },
