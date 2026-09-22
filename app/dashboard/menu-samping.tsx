@@ -43,6 +43,7 @@ const MENU: Grup[] = [
       { href: "/dashboard/laporan/kasir", label: "Laporan Kasir" },
       { href: "/dashboard/laporan/pelayanan", label: "Laporan Pelayanan" },
       { href: "/dashboard/laporan/kepuasan", label: "Laporan Kepuasan", peranBoleh: ["admin", "kapus"] },
+      { href: "/dashboard/laporan/aktivitas", label: "Log Aktivitas", peranBoleh: ["admin", "kapus"] },
     ],
   },
   { label: "Data Pegawai", href: "/dashboard/pegawai", peranBoleh: ["admin", "kapus"] },

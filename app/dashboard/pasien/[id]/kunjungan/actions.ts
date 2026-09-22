@@ -3,6 +3,21 @@
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+// Kolom nadi/td_sistolik/td_diastolik/frekuensi_napas di database tipe int.
+// Kalau dikirim angka desimal (mis. petugas ketik "80.5"), insert ditolak
+// database dan skrining gagal tersimpan. Dibulatkan dulu di sini biar aman.
+function angkaBulat(nilai: string): number | null {
+  if (!nilai) return null;
+  const n = Number(nilai);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+function angkaDesimal(nilai: string): number | null {
+  if (!nilai) return null;
+  const n = Number(nilai);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function daftarKunjunganAction(
   _sebelum: { pesan: string; sukses: boolean; nomorTampil?: string; namaKlaster?: string } | null,
   formData: FormData
@@ -78,13 +93,13 @@ export async function daftarKunjunganAction(
   const { error: errorSkrining } = await supabase.from("skrining").insert({
     kunjungan_id: kunjunganBaru.id,
     keluhan_utama: keluhanUtama || null,
-    tekanan_darah_sistolik: tdSistolik ? Number(tdSistolik) : null,
-    tekanan_darah_diastolik: tdDiastolik ? Number(tdDiastolik) : null,
-    nadi: nadi ? Number(nadi) : null,
-    suhu: suhu ? Number(suhu) : null,
-    frekuensi_napas: frekuensiNapas ? Number(frekuensiNapas) : null,
-    berat_badan: beratBadan ? Number(beratBadan) : null,
-    tinggi_badan: tinggiBadan ? Number(tinggiBadan) : null,
+    tekanan_darah_sistolik: angkaBulat(tdSistolik),
+    tekanan_darah_diastolik: angkaBulat(tdDiastolik),
+    nadi: angkaBulat(nadi),
+    suhu: angkaDesimal(suhu),
+    frekuensi_napas: angkaBulat(frekuensiNapas),
+    berat_badan: angkaDesimal(beratBadan),
+    tinggi_badan: angkaDesimal(tinggiBadan),
     prioritas_triase: prioritasTriase === "kuning" || prioritasTriase === "merah" ? prioritasTriase : "hijau",
     dibuat_oleh: pemanggil.id,
   });

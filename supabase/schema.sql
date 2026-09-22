@@ -10,11 +10,16 @@ create type public.peran_akses as enum (
   'admin',              -- kelola pegawai, akun, konfigurasi sistem
   'kapus',              -- Kepala Puskesmas
   'bendahara_bok',      -- Bendahara BOK (Bantuan Operasional Kesehatan)
+  'manajemen',          -- Klaster 1 (manajemen)
   'dokter',
+  'dokter_gigi',
   'perawat',
   'bidan',
   'farmasi',
   'laboratorium',
+  'tenaga_gizi',
+  'kesling',             -- Kesehatan Lingkungan
+  'promkes',             -- Promosi Kesehatan
   'loket_rm_kasir'      -- loket pendaftaran + rekam medis + kasir, satu peran gabungan
 );
 
@@ -1096,4 +1101,104 @@ on public.klaster for select
 to anon
 using (true);
 create index if not exists idx_survei_kepuasan_dibuat_pada on public.survei_kepuasan (dibuat_pada);
+-- =========================================================
+-- =========================================================
+-- TAHAP 9: (A) Perbaikan enum peran yang belum lengkap
+--          (B) Kebijakan kelola Klaster (khusus admin)
+--          (C) Log Aktivitas -- audit trail 5 tabel penting
+--
+-- Jalankan SEKALI di Supabase SQL Editor. Tidak ada data yang dihapus.
+-- =========================================================
+
+-- ---------- A. Enum peran_akses (instalasi baru) ----------
+-- Sudah dirapikan langsung di definisi tipe peran_akses di atas (baris ~9):
+-- 'dokter_gigi', 'manajemen', 'tenaga_gizi', 'kesling', 'promkes' sudah
+-- didaftarkan dari awal. Instalasi database yang SUDAH JALAN gak bisa
+-- ubah enum yang sudah dipakai kayak gini -- pakai migrasi_tahap_9.sql
+-- yang isinya ALTER TYPE ... ADD VALUE, dijalankan sekali di SQL Editor.
+
+-- ---------- B. Klaster cuma bisa dibaca, belum ada kebijakan ubah ----------
+-- Dari awal cuma ada policy select di tabel klaster -- gak ada policy
+-- insert/update/delete sama sekali, jadi RLS default-nya nolak semua
+-- percobaan ubah walau dari akun admin.
+drop policy if exists "admin_kelola_klaster" on public.klaster;
+create policy "admin_kelola_klaster"
+on public.klaster for all
+to authenticated
+using (public.peran_saya() = 'admin')
+with check (public.peran_saya() = 'admin');
+
+-- ---------- C. Log Aktivitas ----------
+-- Satu tabel log buat 5 tabel penting: pasien, kunjungan, catatan_klinis,
+-- tagihan, pegawai. Ditulis otomatis lewat trigger (security definer), jadi
+-- gak ada jalur insert manual dari aplikasi dan gak nambah kode di modul
+-- yang sudah ada.
+create table if not exists public.log_aktivitas (
+  id uuid primary key default gen_random_uuid(),
+  tabel text not null,
+  baris_id uuid not null,
+  aksi text not null check (aksi in ('insert', 'update', 'delete')),
+  data_lama jsonb,
+  data_baru jsonb,
+  dilakukan_oleh uuid references public.pegawai (id),
+  dilakukan_pada timestamptz not null default now()
+);
+
+comment on table public.log_aktivitas is
+  'Audit trail otomatis lewat trigger: siapa ubah apa, kapan, isi sebelum/sesudahnya';
+
+create or replace function public.catat_log_aktivitas()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.log_aktivitas (tabel, baris_id, aksi, data_lama, data_baru, dilakukan_oleh)
+  values (
+    TG_TABLE_NAME,
+    coalesce(new.id, old.id),
+    lower(TG_OP),
+    case when TG_OP in ('update', 'delete') then to_jsonb(old) else null end,
+    case when TG_OP in ('update', 'insert') then to_jsonb(new) else null end,
+    auth.uid()
+  );
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_log_pasien on public.pasien;
+create trigger trg_log_pasien
+after insert or update or delete on public.pasien
+for each row execute function public.catat_log_aktivitas();
+
+drop trigger if exists trg_log_kunjungan on public.kunjungan;
+create trigger trg_log_kunjungan
+after insert or update or delete on public.kunjungan
+for each row execute function public.catat_log_aktivitas();
+
+drop trigger if exists trg_log_catatan_klinis on public.catatan_klinis;
+create trigger trg_log_catatan_klinis
+after insert or update or delete on public.catatan_klinis
+for each row execute function public.catat_log_aktivitas();
+
+drop trigger if exists trg_log_tagihan on public.tagihan;
+create trigger trg_log_tagihan
+after insert or update or delete on public.tagihan
+for each row execute function public.catat_log_aktivitas();
+
+drop trigger if exists trg_log_pegawai on public.pegawai;
+create trigger trg_log_pegawai
+after insert or update or delete on public.pegawai
+for each row execute function public.catat_log_aktivitas();
+
+alter table public.log_aktivitas enable row level security;
+
+drop policy if exists "admin_kapus_baca_log" on public.log_aktivitas;
+create policy "admin_kapus_baca_log"
+on public.log_aktivitas for select
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus'));
+
+create index if not exists idx_log_aktivitas_tabel_waktu on public.log_aktivitas (tabel, dilakukan_pada desc);
 -- =========================================================
