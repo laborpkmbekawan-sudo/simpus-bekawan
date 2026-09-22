@@ -36,6 +36,11 @@ const MENU: Grup[] = [
     ],
   },
   { label: "Farmasi (BHP)", href: "/dashboard/farmasi", peranBoleh: ["admin", "farmasi"] },
+  {
+    label: "Laporan Internal",
+    peranBoleh: ["admin", "kapus", "bendahara_bok", "loket_rm_kasir"],
+    anak: [{ href: "/dashboard/laporan/kasir", label: "Laporan Kasir" }],
+  },
   { label: "Data Pegawai", href: "/dashboard/pegawai", peranBoleh: ["admin", "kapus"] },
 ];
 
