@@ -73,6 +73,80 @@ export async function simpanCatatanKlinisAction(_sebelum: Hasil | null, formData
   return { pesan: "Catatan klinis tersimpan.", sukses: true };
 }
 
+function angkaAtauNull(formData: FormData, nama: string): number | null {
+  const nilai = String(formData.get(nama) ?? "").trim();
+  if (!nilai) return null;
+  const angka = Number(nilai);
+  return Number.isFinite(angka) ? angka : null;
+}
+
+function teksAtauNull(formData: FormData, nama: string): string | null {
+  const nilai = String(formData.get(nama) ?? "").trim();
+  return nilai || null;
+}
+
+export async function simpanPelayananIbuAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("pelayanan_ibu").upsert(
+    {
+      kunjungan_id: kunjunganId,
+      usia_kehamilan_minggu: angkaAtauNull(formData, "usia_kehamilan_minggu"),
+      gravida: angkaAtauNull(formData, "gravida"),
+      para: angkaAtauNull(formData, "para"),
+      abortus: angkaAtauNull(formData, "abortus"),
+      hpht: teksAtauNull(formData, "hpht"),
+      hpl: teksAtauNull(formData, "hpl"),
+      td_sistolik: angkaAtauNull(formData, "td_sistolik"),
+      td_diastolik: angkaAtauNull(formData, "td_diastolik"),
+      berat_badan: angkaAtauNull(formData, "berat_badan"),
+      lila: angkaAtauNull(formData, "lila"),
+      tfu: angkaAtauNull(formData, "tfu"),
+      djj: angkaAtauNull(formData, "djj"),
+      status_risiko: String(formData.get("status_risiko") ?? "rendah"),
+      faktor_risiko: teksAtauNull(formData, "faktor_risiko"),
+      catatan: teksAtauNull(formData, "catatan"),
+      dibuat_oleh: akses.pemanggil.id,
+    },
+    { onConflict: "kunjungan_id" }
+  );
+
+  if (error) return { pesan: `Gagal menyimpan data ibu: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Data pelayanan ibu tersimpan.", sukses: true };
+}
+
+export async function simpanPelayananAnakAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("pelayanan_anak").upsert(
+    {
+      kunjungan_id: kunjunganId,
+      berat_badan: angkaAtauNull(formData, "berat_badan"),
+      panjang_tinggi_badan: angkaAtauNull(formData, "panjang_tinggi_badan"),
+      lingkar_kepala: angkaAtauNull(formData, "lingkar_kepala"),
+      status_gizi: teksAtauNull(formData, "status_gizi"),
+      status_tumbuh_kembang: teksAtauNull(formData, "status_tumbuh_kembang"),
+      klasifikasi_mtbs: teksAtauNull(formData, "klasifikasi_mtbs"),
+      keluhan: teksAtauNull(formData, "keluhan"),
+      catatan: teksAtauNull(formData, "catatan"),
+      rencana_tindak_lanjut: teksAtauNull(formData, "rencana_tindak_lanjut"),
+      dibuat_oleh: akses.pemanggil.id,
+    },
+    { onConflict: "kunjungan_id" }
+  );
+
+  if (error) return { pesan: `Gagal menyimpan data anak: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Data pelayanan anak tersimpan.", sukses: true };
+}
+
 export async function catatTindakanAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const tarifLayananId = String(formData.get("tarif_layanan_id") ?? "");

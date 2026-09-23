@@ -4,6 +4,8 @@ import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import FormCatatanKlinis from "./form-catatan-klinis";
 import ChecklistTindakan from "./checklist-tindakan";
 import TombolSelesai from "./tombol-selesai";
+import FormPelayananIbu, { type DataPelayananIbu } from "./form-pelayanan-ibu";
+import FormPelayananAnak, { type DataPelayananAnak } from "./form-pelayanan-anak";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -108,7 +110,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: skriningData },
   ] = await Promise.all([
     supabase.from("pasien").select("*").eq("id", kunjungan.pasien_id).maybeSingle(),
-    supabase.from("klaster").select("nama, kode_antrian").eq("id", kunjungan.klaster_tujuan_id).maybeSingle(),
+    supabase.from("klaster").select("kode, nama, kode_antrian").eq("id", kunjungan.klaster_tujuan_id).maybeSingle(),
     supabase.from("skrining").select("*").eq("kunjungan_id", kunjungan.id).maybeSingle(),
   ]);
 
@@ -124,7 +126,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   }
 
   const pasien = pasienData as unknown as Pasien;
-  const klaster = klasterData as { nama: string; kode_antrian: string | null } | null;
+  const klaster = klasterData as { kode: string; nama: string; kode_antrian: string | null } | null;
+  const klaster2 = klaster?.kode === "klaster_2";
   const skrining = skriningData as unknown as Skrining | null;
 
   if (!PERAN_KLINIS.includes(pemanggil.peran)) {
@@ -174,6 +177,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarResepMentah },
     { data: tindakanMentah },
     { data: riwayatMentah },
+    { data: pelayananIbuData },
+    { data: pelayananAnakData },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -202,7 +207,28 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
       .neq("id", kunjungan.id)
       .order("tanggal", { ascending: false })
       .limit(3),
+    klaster2
+      ? supabase
+          .from("pelayanan_ibu")
+          .select(
+            "usia_kehamilan_minggu, gravida, para, abortus, hpht, hpl, td_sistolik, td_diastolik, berat_badan, lila, tfu, djj, status_risiko, faktor_risiko, catatan"
+          )
+          .eq("kunjungan_id", kunjungan.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    klaster2
+      ? supabase
+          .from("pelayanan_anak")
+          .select(
+            "berat_badan, panjang_tinggi_badan, lingkar_kepala, status_gizi, status_tumbuh_kembang, klasifikasi_mtbs, keluhan, catatan, rencana_tindak_lanjut"
+          )
+          .eq("kunjungan_id", kunjungan.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+
+  const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
+  const dataAnak = (pelayananAnakData ?? null) as unknown as DataPelayananAnak | null;
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -330,6 +356,22 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           </div>
         )}
       </section>
+
+      {klaster2 && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Data Ibu (ANC/Kehamilan)</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">Isi kalau pasien ibu hamil/nifas. Lewati kalau bukan.</p>
+          <FormPelayananIbu kunjunganId={kunjungan.id} data={dataIbu} />
+        </section>
+      )}
+
+      {klaster2 && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Data Anak (Tumbuh Kembang/MTBS)</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">Isi kalau pasien bayi/anak. Lewati kalau bukan.</p>
+          <FormPelayananAnak kunjunganId={kunjungan.id} data={dataAnak} />
+        </section>
+      )}
 
       <section className="rounded-card border border-sand-100 bg-white p-5">
         <h2 className="mb-4 text-base font-bold text-ink">Catatan Klinis (SOAP)</h2>

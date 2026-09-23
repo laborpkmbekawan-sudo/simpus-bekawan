@@ -1289,3 +1289,134 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus'))
 with check (public.peran_saya() in ('admin', 'kapus'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 11: PELAYANAN KLASTER 2 -- IBU (ANC) DAN ANAK (TUMBUH KEMBANG/MTBS)
+--
+-- Dua tabel baru, satu-satu dengan kunjungan, sama pola dengan
+-- catatan_klinis/skrining. Diisi lewat halaman Pelayanan yang sudah ada,
+-- muncul cuma kalau kunjungan ditujukan ke Klaster 2 (kode 'klaster_2').
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+-- ---------- A. Pelayanan Ibu (ANC / kehamilan) ----------
+create table if not exists public.pelayanan_ibu (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null unique references public.kunjungan (id) on delete cascade,
+  usia_kehamilan_minggu int,
+  gravida int,
+  para int,
+  abortus int,
+  hpht date,
+  hpl date,
+  td_sistolik int,
+  td_diastolik int,
+  berat_badan numeric(5, 1),
+  lila numeric(4, 1),
+  tfu numeric(4, 1),
+  djj int,
+  status_risiko text not null default 'rendah' check (status_risiko in ('rendah', 'tinggi')),
+  faktor_risiko text,
+  catatan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.pelayanan_ibu is 'Data ANC/kehamilan Klaster 2, satu-satu dengan kunjungan';
+
+alter table public.pelayanan_ibu drop constraint if exists pelayanan_ibu_check;
+alter table public.pelayanan_ibu
+  add constraint pelayanan_ibu_check check (
+    (usia_kehamilan_minggu is null or usia_kehamilan_minggu between 0 and 45)
+    and (gravida is null or gravida between 0 and 20)
+    and (para is null or para between 0 and 20)
+    and (abortus is null or abortus between 0 and 20)
+    and (td_sistolik is null or td_sistolik between 40 and 300)
+    and (td_diastolik is null or td_diastolik between 20 and 200)
+    and (berat_badan is null or berat_badan between 0.5 and 400)
+    and (lila is null or lila between 10 and 50)
+    and (tfu is null or tfu between 5 and 50)
+    and (djj is null or djj between 60 and 220)
+  );
+
+drop trigger if exists trg_pelayanan_ibu_diperbarui on public.pelayanan_ibu;
+create trigger trg_pelayanan_ibu_diperbarui
+before update on public.pelayanan_ibu
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.pelayanan_ibu enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_pelayanan_ibu" on public.pelayanan_ibu;
+create policy "semua_pegawai_lihat_pelayanan_ibu"
+on public.pelayanan_ibu for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_pelayanan_ibu" on public.pelayanan_ibu;
+create policy "peran_klinis_kelola_pelayanan_ibu"
+on public.pelayanan_ibu for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+drop policy if exists "peran_klinis_ubah_pelayanan_ibu" on public.pelayanan_ibu;
+create policy "peran_klinis_ubah_pelayanan_ibu"
+on public.pelayanan_ibu for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+-- ---------- B. Pelayanan Anak (tumbuh kembang / MTBS) ----------
+create table if not exists public.pelayanan_anak (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null unique references public.kunjungan (id) on delete cascade,
+  berat_badan numeric(5, 1),
+  panjang_tinggi_badan numeric(5, 1),
+  lingkar_kepala numeric(4, 1),
+  status_gizi text check (status_gizi in ('gizi_buruk', 'gizi_kurang', 'gizi_baik', 'gizi_lebih')),
+  status_tumbuh_kembang text check (status_tumbuh_kembang in ('sesuai', 'meragukan', 'penyimpangan')),
+  klasifikasi_mtbs text,
+  keluhan text,
+  catatan text,
+  rencana_tindak_lanjut text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.pelayanan_anak is 'Data tumbuh kembang/MTBS anak Klaster 2, satu-satu dengan kunjungan';
+
+alter table public.pelayanan_anak drop constraint if exists pelayanan_anak_check;
+alter table public.pelayanan_anak
+  add constraint pelayanan_anak_check check (
+    (berat_badan is null or berat_badan between 0.5 and 400)
+    and (panjang_tinggi_badan is null or panjang_tinggi_badan between 20 and 200)
+    and (lingkar_kepala is null or lingkar_kepala between 20 and 60)
+  );
+
+drop trigger if exists trg_pelayanan_anak_diperbarui on public.pelayanan_anak;
+create trigger trg_pelayanan_anak_diperbarui
+before update on public.pelayanan_anak
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.pelayanan_anak enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_pelayanan_anak" on public.pelayanan_anak;
+create policy "semua_pegawai_lihat_pelayanan_anak"
+on public.pelayanan_anak for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_pelayanan_anak" on public.pelayanan_anak;
+create policy "peran_klinis_kelola_pelayanan_anak"
+on public.pelayanan_anak for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+drop policy if exists "peran_klinis_ubah_pelayanan_anak" on public.pelayanan_anak;
+create policy "peran_klinis_ubah_pelayanan_anak"
+on public.pelayanan_anak for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+-- =========================================================
