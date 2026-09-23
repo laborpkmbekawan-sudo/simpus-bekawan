@@ -1519,3 +1519,60 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 13: MUTU & KESELAMATAN PASIEN
+--
+-- Modul puskesmas-wide (bukan cuma Klaster 2) buat catat insiden,
+-- keluhan, dan ketidaklengkapan rekam medis + tindak lanjutnya.
+-- Siapa aja pegawai boleh lapor; admin/kapus yang kelola tindak lanjut.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.mutu_insiden (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  kunjungan_id uuid references public.kunjungan (id) on delete set null,
+  jenis text not null check (jenis in ('insiden', 'keluhan', 'ketidaklengkapan_rm')),
+  uraian text not null,
+  tingkat_risiko text not null default 'rendah' check (tingkat_risiko in ('rendah', 'sedang', 'tinggi')),
+  pelapor_id uuid references public.pegawai (id),
+  tindakan_awal text,
+  penanggung_jawab_id uuid references public.pegawai (id),
+  batas_waktu date,
+  status_tindak_lanjut text not null default 'baru' check (status_tindak_lanjut in ('baru', 'proses', 'selesai')),
+  bukti_penyelesaian text,
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.mutu_insiden is 'Pencatatan insiden/keluhan/ketidaklengkapan RM dan tindak lanjut mutu, lintas klaster';
+
+create index if not exists idx_mutu_insiden_tanggal on public.mutu_insiden (tanggal);
+
+drop trigger if exists trg_mutu_insiden_diperbarui on public.mutu_insiden;
+create trigger trg_mutu_insiden_diperbarui
+before update on public.mutu_insiden
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.mutu_insiden enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_mutu_insiden" on public.mutu_insiden;
+create policy "semua_pegawai_lihat_mutu_insiden"
+on public.mutu_insiden for select
+to authenticated
+using (true);
+
+drop policy if exists "semua_pegawai_lapor_mutu_insiden" on public.mutu_insiden;
+create policy "semua_pegawai_lapor_mutu_insiden"
+on public.mutu_insiden for insert
+to authenticated
+with check (true);
+
+drop policy if exists "admin_kapus_kelola_mutu_insiden" on public.mutu_insiden;
+create policy "admin_kapus_kelola_mutu_insiden"
+on public.mutu_insiden for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus'))
+with check (public.peran_saya() in ('admin', 'kapus'));
+-- =========================================================

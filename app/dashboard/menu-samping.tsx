@@ -28,6 +28,12 @@ const MENU: Grup[] = [
   },
   { label: "Rekam Medis", href: "/dashboard/rekam-medis" },
   {
+    label: "Laporan KIA & Anak",
+    href: "/dashboard/laporan/klaster2",
+    peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan"],
+  },
+  { label: "Mutu & Keselamatan Pasien", href: "/dashboard/mutu" },
+  {
     label: "Kasir & Pembayaran",
     peranBoleh: ["admin", "loket_rm_kasir"],
     anak: [
