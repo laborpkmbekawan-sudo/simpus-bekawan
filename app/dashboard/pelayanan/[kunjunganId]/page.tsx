@@ -6,6 +6,8 @@ import ChecklistTindakan from "./checklist-tindakan";
 import TombolSelesai from "./tombol-selesai";
 import FormPelayananIbu, { type DataPelayananIbu } from "./form-pelayanan-ibu";
 import FormPelayananAnak, { type DataPelayananAnak } from "./form-pelayanan-anak";
+import FormSkrining, { type SkriningTercatat } from "./form-skrining";
+import FormImunisasi, { type ImunisasiTercatat } from "./form-imunisasi";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -179,6 +181,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: riwayatMentah },
     { data: pelayananIbuData },
     { data: pelayananAnakData },
+    { data: daftarSkriningMentah },
+    { data: riwayatImunisasiMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -225,10 +229,28 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("kunjungan_id", kunjungan.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    klaster2
+      ? supabase
+          .from("skrining_klaster2")
+          .select("id, jenis_skrining, klasifikasi, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
+    klaster2
+      ? supabase
+          .from("pemberian_imunisasi")
+          .select("id, jenis_vaksin, tanggal_pemberian, nomor_batch, reaksi_kipi, jadwal_berikutnya")
+          .eq("pasien_id", pasien.id)
+          .eq("dibatalkan", false)
+          .order("tanggal_pemberian", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
   const dataAnak = (pelayananAnakData ?? null) as unknown as DataPelayananAnak | null;
+  const daftarSkrining = (daftarSkriningMentah ?? []) as unknown as SkriningTercatat[];
+  const riwayatImunisasi = (riwayatImunisasiMentah ?? []) as unknown as ImunisasiTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -370,6 +392,22 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           <h2 className="text-base font-bold text-ink">Data Anak (Tumbuh Kembang/MTBS)</h2>
           <p className="mb-4 mt-0.5 text-xs text-ink/50">Isi kalau pasien bayi/anak. Lewati kalau bukan.</p>
           <FormPelayananAnak kunjunganId={kunjungan.id} data={dataAnak} />
+        </section>
+      )}
+
+      {klaster2 && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Terstruktur</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">SDIDTK, MTBS/MTBM, gizi, anemia, psikososial. Bisa lebih dari satu per kunjungan.</p>
+          <FormSkrining kunjunganId={kunjungan.id} daftarSkrining={daftarSkrining} />
+        </section>
+      )}
+
+      {klaster2 && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Imunisasi</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">Riwayat di bawah gabungan semua kunjungan pasien ini, bukan cuma kunjungan sekarang.</p>
+          <FormImunisasi kunjunganId={kunjungan.id} pasienId={pasien.id} riwayat={riwayatImunisasi} />
         </section>
       )}
 

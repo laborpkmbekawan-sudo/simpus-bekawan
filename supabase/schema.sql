@@ -1420,3 +1420,102 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 12: SKRINING TERSTRUKTUR & IMUNISASI KLASTER 2
+--
+-- Beda dari pelayanan_ibu/pelayanan_anak (satu-satu per kunjungan), dua
+-- tabel ini BISA BANYAK BARIS per kunjungan (misal 1 kunjungan = skrining
+-- SDIDTK + MTBS, atau 2 vaksin sekaligus). Pola batal pakai kolom
+-- 'dibatalkan', sama seperti kunjungan_tindakan -- gak dihapus, cuma ditandai.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+-- ---------- A. Skrining terstruktur (SDIDTK/MTBS/MTBM/gizi/anemia/psikososial) ----------
+create table if not exists public.skrining_klaster2 (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  jenis_skrining text not null check (
+    jenis_skrining in ('sdidtk', 'mtbs', 'mtbm', 'gizi', 'anemia', 'psikososial')
+  ),
+  hasil_pemeriksaan text,
+  klasifikasi text,
+  masalah_ditemukan text,
+  tindakan text,
+  edukasi text,
+  rujukan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.skrining_klaster2 is 'Skrining terstruktur Klaster 2 (SDIDTK/MTBS/MTBM/gizi/anemia/psikososial), banyak baris per kunjungan';
+
+create index if not exists idx_skrining_klaster2_kunjungan on public.skrining_klaster2 (kunjungan_id);
+
+alter table public.skrining_klaster2 enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_skrining_klaster2" on public.skrining_klaster2;
+create policy "semua_pegawai_lihat_skrining_klaster2"
+on public.skrining_klaster2 for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_skrining_klaster2" on public.skrining_klaster2;
+create policy "peran_klinis_kelola_skrining_klaster2"
+on public.skrining_klaster2 for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+drop policy if exists "peran_klinis_ubah_skrining_klaster2" on public.skrining_klaster2;
+create policy "peran_klinis_ubah_skrining_klaster2"
+on public.skrining_klaster2 for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+-- ---------- B. Imunisasi (pemberian & riwayat) ----------
+create table if not exists public.pemberian_imunisasi (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  pasien_id uuid not null references public.pasien (id) on delete cascade,
+  jenis_vaksin text not null,
+  dosis text,
+  rute text check (rute in ('IM', 'SC', 'ID', 'Oral')),
+  nomor_batch text,
+  tanggal_kedaluwarsa date,
+  tanggal_pemberian date not null default current_date,
+  reaksi_kipi text,
+  jadwal_berikutnya date,
+  dibatalkan boolean not null default false,
+  diberikan_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.pemberian_imunisasi is 'Pemberian & riwayat imunisasi Klaster 2, banyak baris per kunjungan/pasien';
+
+create index if not exists idx_pemberian_imunisasi_kunjungan on public.pemberian_imunisasi (kunjungan_id);
+create index if not exists idx_pemberian_imunisasi_pasien on public.pemberian_imunisasi (pasien_id);
+
+alter table public.pemberian_imunisasi enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_pemberian_imunisasi" on public.pemberian_imunisasi;
+create policy "semua_pegawai_lihat_pemberian_imunisasi"
+on public.pemberian_imunisasi for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_pemberian_imunisasi" on public.pemberian_imunisasi;
+create policy "peran_klinis_kelola_pemberian_imunisasi"
+on public.pemberian_imunisasi for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+
+drop policy if exists "peran_klinis_ubah_pemberian_imunisasi" on public.pemberian_imunisasi;
+create policy "peran_klinis_ubah_pemberian_imunisasi"
+on public.pemberian_imunisasi for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan'));
+-- =========================================================

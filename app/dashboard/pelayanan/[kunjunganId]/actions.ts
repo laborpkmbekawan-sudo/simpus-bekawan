@@ -147,6 +147,88 @@ export async function simpanPelayananAnakAction(_sebelum: Hasil | null, formData
   return { pesan: "Data pelayanan anak tersimpan.", sukses: true };
 }
 
+export async function catatSkriningAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const jenisSkrining = String(formData.get("jenis_skrining") ?? "");
+  if (!jenisSkrining) return { pesan: "Pilih jenis skrining dulu.", sukses: false };
+
+  const { error } = await akses.supabase.from("skrining_klaster2").insert({
+    kunjungan_id: kunjunganId,
+    jenis_skrining: jenisSkrining,
+    hasil_pemeriksaan: teksAtauNull(formData, "hasil_pemeriksaan"),
+    klasifikasi: teksAtauNull(formData, "klasifikasi"),
+    masalah_ditemukan: teksAtauNull(formData, "masalah_ditemukan"),
+    tindakan: teksAtauNull(formData, "tindakan_skrining"),
+    edukasi: teksAtauNull(formData, "edukasi"),
+    rujukan: teksAtauNull(formData, "rujukan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Skrining tersimpan.", sukses: true };
+}
+
+export async function batalkanSkriningAction(skriningId: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase
+    .from("skrining_klaster2")
+    .update({ dibatalkan: true })
+    .eq("id", skriningId)
+    .eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
+export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const pasienId = String(formData.get("pasien_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const jenisVaksin = String(formData.get("jenis_vaksin") ?? "").trim();
+  if (!jenisVaksin) return { pesan: "Isi jenis vaksin dulu.", sukses: false };
+
+  const { error } = await akses.supabase.from("pemberian_imunisasi").insert({
+    kunjungan_id: kunjunganId,
+    pasien_id: pasienId,
+    jenis_vaksin: jenisVaksin,
+    dosis: teksAtauNull(formData, "dosis"),
+    rute: teksAtauNull(formData, "rute"),
+    nomor_batch: teksAtauNull(formData, "nomor_batch"),
+    tanggal_kedaluwarsa: teksAtauNull(formData, "tanggal_kedaluwarsa"),
+    tanggal_pemberian: teksAtauNull(formData, "tanggal_pemberian") ?? new Date().toISOString().slice(0, 10),
+    reaksi_kipi: teksAtauNull(formData, "reaksi_kipi"),
+    jadwal_berikutnya: teksAtauNull(formData, "jadwal_berikutnya"),
+    diberikan_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan imunisasi: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Imunisasi tersimpan.", sukses: true };
+}
+
+export async function batalkanImunisasiAction(imunisasiId: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase
+    .from("pemberian_imunisasi")
+    .update({ dibatalkan: true })
+    .eq("id", imunisasiId)
+    .eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatTindakanAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const tarifLayananId = String(formData.get("tarif_layanan_id") ?? "");
