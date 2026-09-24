@@ -28,6 +28,11 @@ const MENU: Grup[] = [
   },
   { label: "Rekam Medis", href: "/dashboard/rekam-medis" },
   {
+    label: "Dashboard Klaster 2",
+    href: "/dashboard/klaster2",
+    peranBoleh: ["admin", "kapus", "perawat", "bidan"],
+  },
+  {
     label: "Laporan KIA & Anak",
     href: "/dashboard/laporan/klaster2",
     peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan"],
