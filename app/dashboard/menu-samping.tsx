@@ -68,6 +68,8 @@ const MENU: Grup[] = [
       { href: "/dashboard/manajemen/sdm", label: "Manajemen SDM" },
       { href: "/dashboard/manajemen/keuangan", label: "Keuangan Internal" },
       { href: "/dashboard/manajemen/pengaduan-kepuasan", label: "Pengaduan & Kepuasan" },
+      { href: "/dashboard/manajemen/pelayanan", label: "Manajemen Pelayanan" },
+      { href: "/dashboard/manajemen/risiko", label: "Manajemen Risiko" },
     ],
   },
   { label: "Master Data", href: "/dashboard/master-data", peranBoleh: ["admin"] },

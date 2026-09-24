@@ -1674,3 +1674,56 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'bendahara_bok'))
 with check (public.peran_saya() in ('admin', 'kapus', 'bendahara_bok'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 16: MANAJEMEN RISIKO -- REGISTER RISIKO
+--
+-- Beda dari Mutu (mutu_insiden = kejadian yang SUDAH terjadi), ini buat
+-- risiko yang diidentifikasi SEBELUM kejadian + rencana mitigasinya.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.risiko_manajemen (
+  id uuid primary key default gen_random_uuid(),
+  kategori text not null check (kategori in ('pelayanan', 'sdm', 'logistik', 'keamanan_data', 'lainnya')),
+  uraian text not null,
+  penyebab text,
+  level_risiko text not null default 'rendah' check (level_risiko in ('rendah', 'sedang', 'tinggi')),
+  rencana_mitigasi text,
+  penanggung_jawab_id uuid references public.pegawai (id),
+  status text not null default 'teridentifikasi' check (status in ('teridentifikasi', 'dalam_mitigasi', 'terkendali')),
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.risiko_manajemen is 'Register risiko: identifikasi, level, mitigasi, dan status pengendalian';
+
+create index if not exists idx_risiko_manajemen_status on public.risiko_manajemen (status);
+
+drop trigger if exists trg_risiko_manajemen_diperbarui on public.risiko_manajemen;
+create trigger trg_risiko_manajemen_diperbarui
+before update on public.risiko_manajemen
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.risiko_manajemen enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_risiko_manajemen" on public.risiko_manajemen;
+create policy "semua_pegawai_lihat_risiko_manajemen"
+on public.risiko_manajemen for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_risiko" on public.risiko_manajemen;
+create policy "manajemen_kelola_risiko"
+on public.risiko_manajemen for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_risiko" on public.risiko_manajemen;
+create policy "manajemen_ubah_risiko"
+on public.risiko_manajemen for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
