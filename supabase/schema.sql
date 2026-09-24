@@ -1628,3 +1628,49 @@ on public.pegawai_dokumen for delete
 to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 15: KEUANGAN INTERNAL -- PENGELUARAN & KAS HARIAN
+--
+-- Sisi pendapatan udah ada lewat tabel 'tagihan' (kasir). Ini nambah sisi
+-- pengeluaran + alur persetujuan sederhana, biar bisa hitung kas bersih.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.pengeluaran_internal (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  kategori text not null,
+  jumlah numeric(14, 2) not null check (jumlah > 0),
+  keterangan text,
+  diajukan_oleh uuid references public.pegawai (id),
+  status text not null default 'diajukan' check (status in ('diajukan', 'disetujui', 'ditolak')),
+  disetujui_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.pengeluaran_internal is 'Pengajuan & persetujuan pengeluaran internal, buat hitung kas harian Keuangan Internal';
+
+create index if not exists idx_pengeluaran_internal_tanggal on public.pengeluaran_internal (tanggal);
+
+alter table public.pengeluaran_internal enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_pengeluaran_internal" on public.pengeluaran_internal;
+create policy "semua_pegawai_lihat_pengeluaran_internal"
+on public.pengeluaran_internal for select
+to authenticated
+using (true);
+
+drop policy if exists "keuangan_ajukan_pengeluaran_internal" on public.pengeluaran_internal;
+create policy "keuangan_ajukan_pengeluaran_internal"
+on public.pengeluaran_internal for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'bendahara_bok', 'manajemen'));
+
+drop policy if exists "keuangan_setujui_pengeluaran_internal" on public.pengeluaran_internal;
+create policy "keuangan_setujui_pengeluaran_internal"
+on public.pengeluaran_internal for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'bendahara_bok'))
+with check (public.peran_saya() in ('admin', 'kapus', 'bendahara_bok'));
+-- =========================================================
