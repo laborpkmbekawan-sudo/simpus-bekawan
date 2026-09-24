@@ -60,6 +60,14 @@ const MENU: Grup[] = [
     ],
   },
   { label: "Data Pegawai", href: "/dashboard/pegawai", peranBoleh: ["admin", "kapus"] },
+  {
+    label: "Manajemen Puskesmas",
+    peranBoleh: ["admin", "kapus", "manajemen"],
+    anak: [
+      { href: "/dashboard/manajemen", label: "Dashboard Manajemen" },
+      { href: "/dashboard/manajemen/sdm", label: "Manajemen SDM" },
+    ],
+  },
   { label: "Master Data", href: "/dashboard/master-data", peranBoleh: ["admin"] },
 ];
 

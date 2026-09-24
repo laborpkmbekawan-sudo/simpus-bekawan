@@ -1576,3 +1576,55 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus'))
 with check (public.peran_saya() in ('admin', 'kapus'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 14: MANAJEMEN SDM -- DOKUMEN KREDENSIAL PEGAWAI
+--
+-- Nempel ke pegawai yang sudah ada: catat STR/SIP/SIK/pelatihan/sertifikat
+-- + tanggal kedaluwarsa, biar Dashboard Manajemen bisa nampilin yang mau
+-- kedaluwarsa. Aman dijalankan berulang kali. Jalankan SEKALI di SQL Editor.
+-- =========================================================
+
+create table if not exists public.pegawai_dokumen (
+  id uuid primary key default gen_random_uuid(),
+  pegawai_id uuid not null references public.pegawai (id) on delete cascade,
+  jenis text not null check (jenis in ('str', 'sip', 'sik', 'pelatihan', 'sertifikat_lain')),
+  nomor text,
+  nama_dokumen text,
+  tanggal_terbit date,
+  tanggal_kedaluwarsa date,
+  catatan text,
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.pegawai_dokumen is 'Dokumen kredensial pegawai (STR/SIP/SIK/pelatihan/sertifikat) buat Manajemen SDM';
+
+create index if not exists idx_pegawai_dokumen_pegawai on public.pegawai_dokumen (pegawai_id);
+
+alter table public.pegawai_dokumen enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_pegawai_dokumen" on public.pegawai_dokumen;
+create policy "semua_pegawai_lihat_pegawai_dokumen"
+on public.pegawai_dokumen for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_pegawai_dokumen" on public.pegawai_dokumen;
+create policy "manajemen_kelola_pegawai_dokumen"
+on public.pegawai_dokumen for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_pegawai_dokumen" on public.pegawai_dokumen;
+create policy "manajemen_ubah_pegawai_dokumen"
+on public.pegawai_dokumen for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_hapus_pegawai_dokumen" on public.pegawai_dokumen;
+create policy "manajemen_hapus_pegawai_dokumen"
+on public.pegawai_dokumen for delete
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
