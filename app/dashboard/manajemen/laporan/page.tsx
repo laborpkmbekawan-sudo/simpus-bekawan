@@ -51,6 +51,8 @@ export default async function HalamanLaporanInternal() {
         { label: "Mutu & Keselamatan Pasien", href: "/dashboard/mutu" },
         { label: "Manajemen Risiko", href: "/dashboard/manajemen/risiko" },
         { label: "Audit & Pengendalian", href: "/dashboard/manajemen/audit" },
+        { label: "Pustu & Jejaring", href: "/dashboard/manajemen/pustu" },
+        { label: "Sarana & Prasarana", href: "/dashboard/manajemen/sarana" },
         { label: "Manajemen SDM", href: "/dashboard/manajemen/sdm" },
         { label: "Aktivitas Sistem (Log)", href: "/dashboard/laporan/aktivitas" },
       ],

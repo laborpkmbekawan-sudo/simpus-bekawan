@@ -73,6 +73,8 @@ const MENU: Grup[] = [
       { href: "/dashboard/manajemen/rapat", label: "Rapat & Tindak Lanjut" },
       { href: "/dashboard/manajemen/dokumen", label: "Dokumen & Akreditasi" },
       { href: "/dashboard/manajemen/audit", label: "Audit & Pengendalian" },
+      { href: "/dashboard/manajemen/pustu", label: "Pustu & Jejaring" },
+      { href: "/dashboard/manajemen/sarana", label: "Sarana & Prasarana" },
       { href: "/dashboard/manajemen/laporan", label: "Laporan Internal" },
     ],
   },

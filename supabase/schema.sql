@@ -1909,3 +1909,148 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 20: PUSTU & JEJARING
+-- =========================================================
+
+-- ---------- A. Laporan bulanan Pustu ----------
+create table if not exists public.pustu_laporan (
+  id uuid primary key default gen_random_uuid(),
+  lokasi_id uuid not null references public.lokasi (id) on delete cascade,
+  bulan date not null,
+  jumlah_kunjungan int,
+  jumlah_rujukan int,
+  status_logistik text not null default 'aman' check (status_logistik in ('aman', 'menipis', 'kosong')),
+  kendala text,
+  tindak_lanjut text,
+  status text not null default 'terbuka' check (status in ('terbuka', 'selesai')),
+  catatan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now(),
+  unique (lokasi_id, bulan)
+);
+
+comment on table public.pustu_laporan is 'Laporan bulanan operasional Pustu: kunjungan, rujukan, kendala (wilayah pulau/sungai), status logistik';
+
+alter table public.pustu_laporan drop constraint if exists pustu_laporan_check;
+alter table public.pustu_laporan
+  add constraint pustu_laporan_check check (
+    (jumlah_kunjungan is null or jumlah_kunjungan >= 0)
+    and (jumlah_rujukan is null or jumlah_rujukan >= 0)
+  );
+
+drop trigger if exists trg_pustu_laporan_diperbarui on public.pustu_laporan;
+create trigger trg_pustu_laporan_diperbarui
+before update on public.pustu_laporan
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.pustu_laporan enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_pustu_laporan" on public.pustu_laporan;
+create policy "semua_pegawai_lihat_pustu_laporan"
+on public.pustu_laporan for select to authenticated using (true);
+
+drop policy if exists "manajemen_kelola_pustu_laporan" on public.pustu_laporan;
+create policy "manajemen_kelola_pustu_laporan"
+on public.pustu_laporan for insert to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_pustu_laporan" on public.pustu_laporan;
+create policy "manajemen_ubah_pustu_laporan"
+on public.pustu_laporan for update to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+-- ---------- B. Registrasi fasyankes jejaring ----------
+create table if not exists public.jejaring_fasyankes (
+  id uuid primary key default gen_random_uuid(),
+  nama text not null,
+  jenis text not null check (
+    jenis in ('praktik_dokter', 'praktik_bidan', 'klinik_swasta', 'apotek', 'laboratorium', 'lainnya')
+  ),
+  penanggung_jawab text,
+  kontak text,
+  alamat text,
+  lokasi_terdekat_id uuid references public.lokasi (id),
+  status_kerjasama text not null default 'aktif' check (status_kerjasama in ('aktif', 'nonaktif')),
+  catatan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.jejaring_fasyankes is 'Registrasi fasilitas kesehatan jejaring (praktik mandiri, klinik, apotek) di wilayah kerja';
+
+drop trigger if exists trg_jejaring_fasyankes_diperbarui on public.jejaring_fasyankes;
+create trigger trg_jejaring_fasyankes_diperbarui
+before update on public.jejaring_fasyankes
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.jejaring_fasyankes enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_jejaring_fasyankes" on public.jejaring_fasyankes;
+create policy "semua_pegawai_lihat_jejaring_fasyankes"
+on public.jejaring_fasyankes for select to authenticated using (true);
+
+drop policy if exists "manajemen_kelola_jejaring_fasyankes" on public.jejaring_fasyankes;
+create policy "manajemen_kelola_jejaring_fasyankes"
+on public.jejaring_fasyankes for insert to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_jejaring_fasyankes" on public.jejaring_fasyankes;
+create policy "manajemen_ubah_jejaring_fasyankes"
+on public.jejaring_fasyankes for update to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+-- =========================================================
+-- TAHAP 21: SARANA & PRASARANA
+-- =========================================================
+
+create table if not exists public.sarana_prasarana (
+  id uuid primary key default gen_random_uuid(),
+  nama_aset text not null,
+  kategori text not null check (
+    kategori in ('bangunan', 'alat_kesehatan', 'kendaraan', 'utilitas', 'it_dan_komunikasi', 'lainnya')
+  ),
+  lokasi_id uuid references public.lokasi (id),
+  kondisi text not null default 'baik' check (kondisi in ('baik', 'rusak_ringan', 'rusak_berat')),
+  tanggal_pemeriksaan date,
+  tindak_lanjut text,
+  status_perbaikan text not null default 'tidak_perlu' check (
+    status_perbaikan in ('tidak_perlu', 'menunggu', 'proses', 'selesai')
+  ),
+  catatan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.sarana_prasarana is 'Register aset sarana & prasarana: bangunan, alkes, kendaraan, utilitas, kondisi & tindak lanjut perbaikan';
+
+create index if not exists idx_sarana_prasarana_kondisi on public.sarana_prasarana (kondisi);
+
+drop trigger if exists trg_sarana_prasarana_diperbarui on public.sarana_prasarana;
+create trigger trg_sarana_prasarana_diperbarui
+before update on public.sarana_prasarana
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.sarana_prasarana enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_sarana_prasarana" on public.sarana_prasarana;
+create policy "semua_pegawai_lihat_sarana_prasarana"
+on public.sarana_prasarana for select to authenticated using (true);
+
+drop policy if exists "manajemen_kelola_sarana_prasarana" on public.sarana_prasarana;
+create policy "manajemen_kelola_sarana_prasarana"
+on public.sarana_prasarana for insert to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_sarana_prasarana" on public.sarana_prasarana;
+create policy "manajemen_ubah_sarana_prasarana"
+on public.sarana_prasarana for update to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
