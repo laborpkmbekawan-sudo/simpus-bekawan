@@ -2287,3 +2287,124 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 26: MANAJEMEN UKM
+--
+-- Register kegiatan UKM luar gedung di luar klaster 2 & ILP: Promkes,
+-- Kesling, Gizi Masyarakat, P2P, Perkesmas, Kesorga/Kesja. Sasaran,
+-- capaian, petugas pelaksana, hasil dan tindak lanjut per wilayah.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.ukm_kegiatan (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  upaya text not null check (
+    upaya in ('promkes', 'kesling', 'gizi_masyarakat', 'p2p', 'perkesmas', 'kesorga', 'kesja', 'lainnya')
+  ),
+  jenis_kegiatan text not null,
+  desa_wilayah text not null,
+  sasaran int,
+  capaian int,
+  petugas_pelaksana_id uuid references public.pegawai (id),
+  hasil text,
+  tindak_lanjut text,
+  status text not null default 'terbuka' check (status in ('terbuka', 'selesai')),
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.ukm_kegiatan is 'Register kegiatan UKM luar gedung: Promkes, Kesling, Gizi Masyarakat, P2P, Perkesmas, Kesorga/Kesja';
+
+create index if not exists idx_ukm_kegiatan_upaya on public.ukm_kegiatan (upaya, status);
+
+drop trigger if exists trg_ukm_kegiatan_diperbarui on public.ukm_kegiatan;
+create trigger trg_ukm_kegiatan_diperbarui
+before update on public.ukm_kegiatan
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.ukm_kegiatan enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_ukm_kegiatan" on public.ukm_kegiatan;
+create policy "semua_pegawai_lihat_ukm_kegiatan"
+on public.ukm_kegiatan for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_ukm_kegiatan" on public.ukm_kegiatan;
+create policy "manajemen_kelola_ukm_kegiatan"
+on public.ukm_kegiatan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_ukm_kegiatan" on public.ukm_kegiatan;
+create policy "manajemen_ubah_ukm_kegiatan"
+on public.ukm_kegiatan for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 27: MANAJEMEN UKP
+--
+-- Register audit kepatuhan klinis per unit layanan UKP (poli umum, gigi,
+-- KIA/KB, gawat darurat, rawat inap, lab, farmasi): skor kepatuhan SOP,
+-- temuan, rekomendasi, status tindak lanjut.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.ukp_kepatuhan (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  unit_layanan text not null check (
+    unit_layanan in (
+      'poli_umum', 'poli_gigi', 'kia_kb', 'gawat_darurat', 'rawat_inap', 'laboratorium', 'farmasi', 'lainnya'
+    )
+  ),
+  aspek_dinilai text not null,
+  skor_kepatuhan numeric(5, 2) check (skor_kepatuhan is null or (skor_kepatuhan >= 0 and skor_kepatuhan <= 100)),
+  temuan text,
+  rekomendasi text,
+  penanggung_jawab_id uuid references public.pegawai (id),
+  status_tindak_lanjut text not null default 'belum_sesuai' check (
+    status_tindak_lanjut in ('belum_sesuai', 'sebagian_sesuai', 'sesuai')
+  ),
+  bukti_tindak_lanjut text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.ukp_kepatuhan is 'Register audit kepatuhan klinis UKP per unit layanan: skor kepatuhan SOP, temuan, status tindak lanjut';
+
+create index if not exists idx_ukp_kepatuhan_unit on public.ukp_kepatuhan (unit_layanan, status_tindak_lanjut);
+
+drop trigger if exists trg_ukp_kepatuhan_diperbarui on public.ukp_kepatuhan;
+create trigger trg_ukp_kepatuhan_diperbarui
+before update on public.ukp_kepatuhan
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.ukp_kepatuhan enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_ukp_kepatuhan" on public.ukp_kepatuhan;
+create policy "semua_pegawai_lihat_ukp_kepatuhan"
+on public.ukp_kepatuhan for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_ukp_kepatuhan" on public.ukp_kepatuhan;
+create policy "manajemen_kelola_ukp_kepatuhan"
+on public.ukp_kepatuhan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_ukp_kepatuhan" on public.ukp_kepatuhan;
+create policy "manajemen_ubah_ukp_kepatuhan"
+on public.ukp_kepatuhan for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
