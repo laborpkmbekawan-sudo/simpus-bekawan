@@ -1727,3 +1727,131 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 17: RAPAT & TINDAK LANJUT
+--
+-- Notulen rapat (lokmin bulanan, lintas sektor, rapat mutu, dll) + matriks
+-- tindak lanjut per rapat (penanggung jawab, batas waktu, status, bukti).
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.rapat (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  jenis text not null check (jenis in ('lokmin_bulanan', 'lintas_sektor', 'rapat_mutu', 'lainnya')),
+  judul text not null,
+  notulen text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.rapat is 'Notulen rapat internal (lokmin, lintas sektor, rapat mutu, dll)';
+
+alter table public.rapat enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_rapat" on public.rapat;
+create policy "semua_pegawai_lihat_rapat"
+on public.rapat for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_rapat" on public.rapat;
+create policy "manajemen_kelola_rapat"
+on public.rapat for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_rapat" on public.rapat;
+create policy "manajemen_ubah_rapat"
+on public.rapat for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+create table if not exists public.rapat_tindak_lanjut (
+  id uuid primary key default gen_random_uuid(),
+  rapat_id uuid not null references public.rapat (id) on delete cascade,
+  uraian text not null,
+  penanggung_jawab_id uuid references public.pegawai (id),
+  batas_waktu date,
+  status text not null default 'belum' check (status in ('belum', 'proses', 'selesai')),
+  bukti_penyelesaian text,
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.rapat_tindak_lanjut is 'Matriks tindak lanjut per rapat: penanggung jawab, batas waktu, status, bukti';
+
+create index if not exists idx_rapat_tindak_lanjut_rapat on public.rapat_tindak_lanjut (rapat_id);
+
+alter table public.rapat_tindak_lanjut enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_rapat_tindak_lanjut" on public.rapat_tindak_lanjut;
+create policy "semua_pegawai_lihat_rapat_tindak_lanjut"
+on public.rapat_tindak_lanjut for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_rapat_tindak_lanjut" on public.rapat_tindak_lanjut;
+create policy "manajemen_kelola_rapat_tindak_lanjut"
+on public.rapat_tindak_lanjut for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_rapat_tindak_lanjut" on public.rapat_tindak_lanjut;
+create policy "manajemen_ubah_rapat_tindak_lanjut"
+on public.rapat_tindak_lanjut for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 18: DOKUMEN & AKREDITASI
+--
+-- Arsip metadata dokumen organisasi (kebijakan/SOP/pedoman/dst) + tanggal
+-- kedaluwarsa, biar Dashboard Manajemen bisa nampilin yang mau kedaluwarsa.
+-- (Berkasnya sendiri gak diupload ke sini, cuma metadatanya.)
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.dokumen_organisasi (
+  id uuid primary key default gen_random_uuid(),
+  jenis text not null check (
+    jenis in ('kebijakan', 'pedoman', 'panduan', 'sop', 'instruksi_kerja', 'kak', 'formulir', 'sk', 'dokumen_mutu', 'bukti_pelaksanaan')
+  ),
+  judul text not null,
+  nomor text,
+  tanggal_terbit date,
+  tanggal_kedaluwarsa date,
+  status text not null default 'aktif' check (status in ('aktif', 'revisi', 'kedaluwarsa')),
+  catatan text,
+  diunggah_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.dokumen_organisasi is 'Metadata dokumen organisasi (kebijakan/SOP/pedoman/dst) buat Dokumen & Akreditasi';
+
+create index if not exists idx_dokumen_organisasi_kedaluwarsa on public.dokumen_organisasi (tanggal_kedaluwarsa);
+
+alter table public.dokumen_organisasi enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_dokumen_organisasi" on public.dokumen_organisasi;
+create policy "semua_pegawai_lihat_dokumen_organisasi"
+on public.dokumen_organisasi for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_dokumen_organisasi" on public.dokumen_organisasi;
+create policy "manajemen_kelola_dokumen_organisasi"
+on public.dokumen_organisasi for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_dokumen_organisasi" on public.dokumen_organisasi;
+create policy "manajemen_ubah_dokumen_organisasi"
+on public.dokumen_organisasi for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================

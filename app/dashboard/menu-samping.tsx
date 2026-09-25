@@ -70,6 +70,8 @@ const MENU: Grup[] = [
       { href: "/dashboard/manajemen/pengaduan-kepuasan", label: "Pengaduan & Kepuasan" },
       { href: "/dashboard/manajemen/pelayanan", label: "Manajemen Pelayanan" },
       { href: "/dashboard/manajemen/risiko", label: "Manajemen Risiko" },
+      { href: "/dashboard/manajemen/rapat", label: "Rapat & Tindak Lanjut" },
+      { href: "/dashboard/manajemen/dokumen", label: "Dokumen & Akreditasi" },
     ],
   },
   { label: "Master Data", href: "/dashboard/master-data", peranBoleh: ["admin"] },
