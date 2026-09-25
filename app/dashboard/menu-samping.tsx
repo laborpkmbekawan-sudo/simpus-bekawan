@@ -72,6 +72,8 @@ const MENU: Grup[] = [
       { href: "/dashboard/manajemen/risiko", label: "Manajemen Risiko" },
       { href: "/dashboard/manajemen/rapat", label: "Rapat & Tindak Lanjut" },
       { href: "/dashboard/manajemen/dokumen", label: "Dokumen & Akreditasi" },
+      { href: "/dashboard/manajemen/audit", label: "Audit & Pengendalian" },
+      { href: "/dashboard/manajemen/laporan", label: "Laporan Internal" },
     ],
   },
   { label: "Master Data", href: "/dashboard/master-data", peranBoleh: ["admin"] },

@@ -1855,3 +1855,57 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 19: AUDIT & PENGENDALIAN
+--
+-- Register temuan audit internal (rekam medis/keuangan/mutu/dll) +
+-- rekomendasi, penanggung jawab, dan status kepatuhan tindak lanjutnya.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.audit_temuan (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  jenis_audit text not null check (jenis_audit in ('audit_internal', 'audit_rekam_medis', 'audit_keuangan', 'audit_mutu')),
+  temuan text not null,
+  rekomendasi text,
+  penanggung_jawab_id uuid references public.pegawai (id),
+  batas_waktu date,
+  status_kepatuhan text not null default 'belum_sesuai' check (status_kepatuhan in ('belum_sesuai', 'sebagian_sesuai', 'sesuai')),
+  bukti_tindak_lanjut text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.audit_temuan is 'Register temuan audit internal + rekomendasi dan status kepatuhan tindak lanjut';
+
+create index if not exists idx_audit_temuan_status on public.audit_temuan (status_kepatuhan);
+
+drop trigger if exists trg_audit_temuan_diperbarui on public.audit_temuan;
+create trigger trg_audit_temuan_diperbarui
+before update on public.audit_temuan
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.audit_temuan enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_audit_temuan" on public.audit_temuan;
+create policy "semua_pegawai_lihat_audit_temuan"
+on public.audit_temuan for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_audit_temuan" on public.audit_temuan;
+create policy "manajemen_kelola_audit_temuan"
+on public.audit_temuan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_audit_temuan" on public.audit_temuan;
+create policy "manajemen_ubah_audit_temuan"
+on public.audit_temuan for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
