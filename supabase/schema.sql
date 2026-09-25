@@ -2158,3 +2158,132 @@ create policy "manajemen_catat_logistik_mutasi"
 on public.logistik_mutasi for insert to authenticated
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 24: PERENCANAAN (RUK/RPK)
+--
+-- Register usulan & pelaksanaan kegiatan puskesmas: Rencana Usulan
+-- Kegiatan (RUK, tahunan) dan Rencana Pelaksanaan Kegiatan (RPK, bulanan),
+-- per upaya kesehatan, sumber dana, dan status persetujuan/realisasi.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.perencanaan_kegiatan (
+  id uuid primary key default gen_random_uuid(),
+  tahun int not null,
+  jenis text not null check (jenis in ('ruk', 'rpk')),
+  upaya text not null check (
+    upaya in ('ukm_esensial', 'ukm_pengembangan', 'ukp', 'manajemen', 'mutu')
+  ),
+  program text not null,
+  kegiatan text not null,
+  sasaran text,
+  volume text,
+  jadwal_bulan int check (jadwal_bulan between 1 and 12),
+  sumber_dana text not null default 'bok' check (sumber_dana in ('bok', 'jkn', 'apbd', 'lainnya')),
+  rencana_anggaran numeric(14, 2),
+  realisasi_anggaran numeric(14, 2),
+  penanggung_jawab_id uuid references public.pegawai (id),
+  status text not null default 'diusulkan' check (
+    status in ('diusulkan', 'disetujui', 'berjalan', 'selesai', 'ditunda')
+  ),
+  catatan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.perencanaan_kegiatan is 'Register RUK/RPK: usulan & pelaksanaan kegiatan puskesmas per tahun, program, sumber dana, status';
+
+create index if not exists idx_perencanaan_kegiatan_tahun on public.perencanaan_kegiatan (tahun, status);
+
+drop trigger if exists trg_perencanaan_kegiatan_diperbarui on public.perencanaan_kegiatan;
+create trigger trg_perencanaan_kegiatan_diperbarui
+before update on public.perencanaan_kegiatan
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.perencanaan_kegiatan enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_perencanaan_kegiatan" on public.perencanaan_kegiatan;
+create policy "semua_pegawai_lihat_perencanaan_kegiatan"
+on public.perencanaan_kegiatan for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_perencanaan_kegiatan" on public.perencanaan_kegiatan;
+create policy "manajemen_kelola_perencanaan_kegiatan"
+on public.perencanaan_kegiatan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_perencanaan_kegiatan" on public.perencanaan_kegiatan;
+create policy "manajemen_ubah_perencanaan_kegiatan"
+on public.perencanaan_kegiatan for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 25: MANAJEMEN ILP (INTEGRASI LAYANAN PRIMER)
+--
+-- Register kegiatan pemantauan wilayah setempat per siklus hidup:
+-- kunjungan rumah, pendataan keluarga sehat, Posyandu Prima, dll,
+-- dengan sasaran/capaian dan kendala wilayah binaan.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.ilp_kegiatan (
+  id uuid primary key default gen_random_uuid(),
+  tanggal date not null default current_date,
+  siklus_hidup text not null check (
+    siklus_hidup in ('ibu_hamil', 'bayi_balita', 'usia_sekolah_remaja', 'usia_produktif', 'lansia')
+  ),
+  jenis_kegiatan text not null check (
+    jenis_kegiatan in (
+      'kunjungan_rumah', 'pendataan_keluarga_sehat', 'posyandu_prima', 'pemantauan_wilayah_setempat', 'lainnya'
+    )
+  ),
+  desa_wilayah text not null,
+  sasaran int,
+  capaian int,
+  kader_terlibat text,
+  kendala text,
+  tindak_lanjut text,
+  status text not null default 'terbuka' check (status in ('terbuka', 'selesai')),
+  penanggung_jawab_id uuid references public.pegawai (id),
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now(),
+  diperbarui_pada timestamptz not null default now()
+);
+
+comment on table public.ilp_kegiatan is 'Register kegiatan Integrasi Layanan Primer (ILP) per siklus hidup: kunjungan rumah, pendataan keluarga sehat, Posyandu Prima, PWS';
+
+create index if not exists idx_ilp_kegiatan_siklus on public.ilp_kegiatan (siklus_hidup, status);
+
+drop trigger if exists trg_ilp_kegiatan_diperbarui on public.ilp_kegiatan;
+create trigger trg_ilp_kegiatan_diperbarui
+before update on public.ilp_kegiatan
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.ilp_kegiatan enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_ilp_kegiatan" on public.ilp_kegiatan;
+create policy "semua_pegawai_lihat_ilp_kegiatan"
+on public.ilp_kegiatan for select
+to authenticated
+using (true);
+
+drop policy if exists "manajemen_kelola_ilp_kegiatan" on public.ilp_kegiatan;
+create policy "manajemen_kelola_ilp_kegiatan"
+on public.ilp_kegiatan for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_ilp_kegiatan" on public.ilp_kegiatan;
+create policy "manajemen_ubah_ilp_kegiatan"
+on public.ilp_kegiatan for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================

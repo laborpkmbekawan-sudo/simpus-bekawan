@@ -65,6 +65,8 @@ const MENU: Grup[] = [
     peranBoleh: ["admin", "kapus", "manajemen"],
     anak: [
       { href: "/dashboard/manajemen", label: "Dashboard Manajemen" },
+      { href: "/dashboard/manajemen/perencanaan", label: "Perencanaan" },
+      { href: "/dashboard/manajemen/ilp", label: "Manajemen ILP" },
       { href: "/dashboard/manajemen/sdm", label: "Manajemen SDM" },
       { href: "/dashboard/manajemen/keuangan", label: "Keuangan Internal" },
       { href: "/dashboard/manajemen/pengaduan-kepuasan", label: "Pengaduan & Kepuasan" },

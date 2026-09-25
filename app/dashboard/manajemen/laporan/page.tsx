@@ -55,6 +55,8 @@ export default async function HalamanLaporanInternal() {
         { label: "Sarana & Prasarana", href: "/dashboard/manajemen/sarana" },
         { label: "Program Prioritas", href: "/dashboard/manajemen/program-prioritas" },
         { label: "Manajemen Logistik", href: "/dashboard/manajemen/logistik" },
+        { label: "Perencanaan (RUK/RPK)", href: "/dashboard/manajemen/perencanaan" },
+        { label: "Manajemen ILP", href: "/dashboard/manajemen/ilp" },
         { label: "Manajemen SDM", href: "/dashboard/manajemen/sdm" },
         { label: "Aktivitas Sistem (Log)", href: "/dashboard/laporan/aktivitas" },
       ],
