@@ -2054,3 +2054,107 @@ on public.sarana_prasarana for update to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 22: PROGRAM PRIORITAS
+-- =========================================================
+
+create table if not exists public.program_prioritas_capaian (
+  id uuid primary key default gen_random_uuid(),
+  bulan int not null check (bulan between 1 and 12),
+  tahun int not null,
+  kode_program text not null,
+  nama_program text not null,
+  sasaran numeric,
+  capaian numeric,
+  catatan text,
+  diisi_oleh uuid references public.pegawai (id),
+  diperbarui_pada timestamptz not null default now(),
+  unique (bulan, tahun, kode_program)
+);
+
+comment on table public.program_prioritas_capaian is
+  'Input manual capaian program prioritas nasional (stunting, AKI/AKB, TBC, HIV, malaria, dst) per bulan';
+
+drop trigger if exists trg_program_prioritas_diperbarui on public.program_prioritas_capaian;
+create trigger trg_program_prioritas_diperbarui
+before update on public.program_prioritas_capaian
+for each row execute function public.set_diperbarui_pada();
+
+alter table public.program_prioritas_capaian enable row level security;
+
+drop policy if exists "manajemen_baca_program_prioritas" on public.program_prioritas_capaian;
+create policy "manajemen_baca_program_prioritas"
+on public.program_prioritas_capaian for select
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_isi_program_prioritas" on public.program_prioritas_capaian;
+create policy "manajemen_isi_program_prioritas"
+on public.program_prioritas_capaian for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+drop policy if exists "manajemen_ubah_program_prioritas" on public.program_prioritas_capaian;
+create policy "manajemen_ubah_program_prioritas"
+on public.program_prioritas_capaian for update
+to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+-- =========================================================
+-- TAHAP 23: MANAJEMEN LOGISTIK (NON-MEDIS)
+-- =========================================================
+
+-- ---------- A. Master barang & stok berjalan ----------
+create table if not exists public.logistik_barang (
+  id uuid primary key default gen_random_uuid(),
+  nama_barang text not null,
+  kategori text not null default 'lainnya' check (
+    kategori in ('atk', 'rumah_tangga', 'kebersihan', 'percetakan', 'lainnya')
+  ),
+  satuan text not null default 'pcs',
+  stok_saat_ini numeric(12, 2) not null default 0,
+  stok_minimum numeric(12, 2) not null default 0,
+  aktif boolean not null default true,
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.logistik_barang is 'Master barang logistik non-medis (ATK, rumah tangga, kebersihan, percetakan) dan stok berjalan';
+
+alter table public.logistik_barang enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_logistik_barang" on public.logistik_barang;
+create policy "semua_pegawai_lihat_logistik_barang"
+on public.logistik_barang for select to authenticated using (true);
+
+drop policy if exists "manajemen_kelola_logistik_barang" on public.logistik_barang;
+create policy "manajemen_kelola_logistik_barang"
+on public.logistik_barang for all to authenticated
+using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+
+-- ---------- B. Riwayat mutasi stok ----------
+create table if not exists public.logistik_mutasi (
+  id uuid primary key default gen_random_uuid(),
+  barang_id uuid not null references public.logistik_barang (id) on delete cascade,
+  jenis text not null check (jenis in ('masuk', 'keluar', 'penyesuaian')),
+  jumlah numeric(12, 2) not null,
+  keterangan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.logistik_mutasi is 'Riwayat mutasi stok barang logistik non-medis';
+
+alter table public.logistik_mutasi enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_logistik_mutasi" on public.logistik_mutasi;
+create policy "semua_pegawai_lihat_logistik_mutasi"
+on public.logistik_mutasi for select to authenticated using (true);
+
+drop policy if exists "manajemen_catat_logistik_mutasi" on public.logistik_mutasi;
+create policy "manajemen_catat_logistik_mutasi"
+on public.logistik_mutasi for insert to authenticated
+with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
+-- =========================================================
