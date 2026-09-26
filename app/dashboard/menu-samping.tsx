@@ -46,9 +46,12 @@ const MENU: Grup[] = [
   },
   { label: "Rekam Medis", href: "/dashboard/rekam-medis", peranBoleh: PERAN_LAYANAN_PASIEN },
   {
-    label: "Dashboard Klaster 2",
-    href: "/dashboard/klaster2",
+    label: "Klaster 2 (Ibu, Anak & Remaja)",
     peranBoleh: ["admin", "kapus", "perawat", "bidan"],
+    anak: [
+      { href: "/dashboard/klaster2", label: "Dashboard" },
+      { href: "/dashboard/klaster2/kohort", label: "Kohort & Register" },
+    ],
   },
   {
     label: "Laporan KIA & Anak",
