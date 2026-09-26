@@ -8,12 +8,29 @@ import { useNotifikasiRujukan } from "./notifikasi-rujukan";
 type Item = { href: string; label: string; peranBoleh?: string[]; lencanaRujukan?: boolean };
 type Grup = { label: string; href?: string; peranBoleh?: string[]; anak?: Item[] };
 
+// Peran yang menangani alur pasien langsung (pendaftaran, antrian, rujukan,
+// rekam medis). Peran non-klinis (manajemen/klaster 1, bendahara BOK,
+// kesling, promkes) gak perlu menu ini di sidebar.
+const PERAN_LAYANAN_PASIEN = [
+  "admin",
+  "kapus",
+  "loket_rm_kasir",
+  "dokter",
+  "dokter_gigi",
+  "perawat",
+  "bidan",
+  "farmasi",
+  "laboratorium",
+  "tenaga_gizi",
+];
+
 // Menu bertingkat: grup dengan `anak` jadi dropdown, grup dengan `href`
 // langsung jadi link tunggal.
 const MENU: Grup[] = [
   { label: "Beranda", href: "/dashboard" },
   {
     label: "Pendaftaran Pasien",
+    peranBoleh: PERAN_LAYANAN_PASIEN,
     anak: [
       { href: "/dashboard/pasien", label: "Daftar Pasien" },
       { href: "/dashboard/kunjungan-hari-ini", label: "Kunjungan Hari Ini" },
@@ -21,12 +38,13 @@ const MENU: Grup[] = [
   },
   {
     label: "Pelayanan & Rujukan",
+    peranBoleh: PERAN_LAYANAN_PASIEN,
     anak: [
       { href: "/dashboard/antrian", label: "Antrian" },
       { href: "/dashboard/rujukan", label: "Rujukan", lencanaRujukan: true },
     ],
   },
-  { label: "Rekam Medis", href: "/dashboard/rekam-medis" },
+  { label: "Rekam Medis", href: "/dashboard/rekam-medis", peranBoleh: PERAN_LAYANAN_PASIEN },
   {
     label: "Dashboard Klaster 2",
     href: "/dashboard/klaster2",
