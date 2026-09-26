@@ -5,12 +5,12 @@ import Link from "next/link";
 export default async function HalamanPasien({
   searchParams,
 }: {
-  searchParams: { tanggal?: string };
+  searchParams: { tanggal?: string; baru?: string };
 }) {
   const supabase = createClient();
   const tanggal = searchParams.tanggal || new Date().toISOString().slice(0, 10);
 
-  const [{ data: kunjunganMentah }, { data: semuaPasien }] = await Promise.all([
+  const [{ data: kunjunganMentah }, { data: semuaPasien }, pasienBaruQuery] = await Promise.all([
     supabase
       .from("kunjungan")
       .select(
@@ -21,7 +21,19 @@ export default async function HalamanPasien({
     supabase
       .from("pasien")
       .select("id, no_rm, nik, nama_lengkap, jenis_penjamin, no_bpjs"),
+    // Diambil kalau baru aja selesai simpan pasien baru (lihat redirect di
+    // actions.ts), buat nampilin ajakan lanjut daftar kunjungan -- biar
+    // petugas gak perlu cari manual lagi pasien yang baru aja dia input.
+    searchParams.baru
+      ? supabase
+          .from("pasien")
+          .select("id, no_rm, nama_lengkap")
+          .eq("id", searchParams.baru)
+          .single()
+      : Promise.resolve({ data: null }),
   ]);
+
+  const pasienBaru = pasienBaruQuery?.data ?? null;
 
   const kunjunganHariIni = (kunjunganMentah ?? []).map((k) => {
     const pasien = k.pasien as unknown as {
@@ -66,6 +78,22 @@ export default async function HalamanPasien({
           + Pasien Baru
         </Link>
       </div>
+
+      {pasienBaru && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-teal-700/20 bg-teal-500/10 p-4">
+          <p className="text-sm text-ink">
+            Pasien baru <span className="font-bold">{pasienBaru.nama_lengkap}</span> (No. RM{" "}
+            {pasienBaru.no_rm}) berhasil disimpan.
+          </p>
+          <Link
+            href={`/dashboard/pasien/${pasienBaru.id}/kunjungan`}
+            className="whitespace-nowrap rounded-sm bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white
+                       hover:bg-teal-900"
+          >
+            Daftarkan Kunjungan →
+          </Link>
+        </div>
+      )}
 
       <TabelDaftarPasien
         tanggal={tanggal}

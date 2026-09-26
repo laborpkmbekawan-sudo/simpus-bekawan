@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { daftarKunjunganAction } from "./actions";
 
@@ -47,12 +48,20 @@ export default function FormKunjungan({
             {state.pesan}
           </p>
         )}
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-6 rounded-sm bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900"
-        >
-          Daftarkan kunjungan lain
-        </button>
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-sm bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900"
+          >
+            Daftarkan kunjungan lain
+          </button>
+          <Link
+            href="/dashboard/pasien"
+            className="text-sm font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+          >
+            Kembali ke Daftar Pasien
+          </Link>
+        </div>
       </div>
     );
   }
