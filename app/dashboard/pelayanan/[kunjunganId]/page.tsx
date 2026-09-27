@@ -14,6 +14,8 @@ import FormKesproCaten, { type KesproCatenTercatat } from "./form-kespro-caten";
 import FormPenyakitMenular, { type PenyakitMenularTercatat } from "./form-penyakit-menular";
 import FormSkriningPtm, { type SkriningPtmTercatat } from "./form-skrining-ptm";
 import FormKankerTalasemia, { type KankerTalasemiaTercatat } from "./form-kanker-talasemia";
+import FormImunisasiWus, { type ImunisasiWusTercatat } from "./form-imunisasi-wus";
+import FormKesehatanKerja, { type KesehatanKerjaTercatat } from "./form-kesehatan-kerja";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -211,6 +213,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarPenyakitMenularMentah },
     { data: daftarSkriningPtmMentah },
     { data: daftarKankerTalasemiaMentah },
+    { data: daftarImunisasiWusMentah },
+    { data: daftarKesehatanKerjaMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -323,6 +327,22 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
       : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "dewasa"
+      ? supabase
+          .from("skrining_imunisasi_wus")
+          .select("id, status_tt, diberikan_hari_ini, jenis_vaksin, jadwal_berikutnya, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "dewasa"
+      ? supabase
+          .from("pemeriksaan_kesehatan_kerja")
+          .select("id, jenis_pekerjaan, pajanan_risiko, diagnosis_pak, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
@@ -335,6 +355,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarPenyakitMenular = (daftarPenyakitMenularMentah ?? []) as unknown as PenyakitMenularTercatat[];
   const daftarSkriningPtm = (daftarSkriningPtmMentah ?? []) as unknown as SkriningPtmTercatat[];
   const daftarKankerTalasemia = (daftarKankerTalasemiaMentah ?? []) as unknown as KankerTalasemiaTercatat[];
+  const daftarImunisasiWus = (daftarImunisasiWusMentah ?? []) as unknown as ImunisasiWusTercatat[];
+  const daftarKesehatanKerja = (daftarKesehatanKerjaMentah ?? []) as unknown as KesehatanKerjaTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -556,6 +578,26 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
             Gizi (LILA/IMT), Hb, golongan darah, status TT, dan skrining HIV/Sifilis/Hepatitis B.
           </p>
           <FormKesproCaten kunjunganId={kunjungan.id} daftarPemeriksaan={daftarKesproCaten} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "dewasa" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Imunisasi WUS</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Status imunisasi Tetanus Toksoid (TT/Td) buat wanita usia subur (WUS) 15–49 tahun.
+          </p>
+          <FormImunisasiWus kunjunganId={kunjungan.id} daftarSkrining={daftarImunisasiWus} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "dewasa" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Kesehatan Kerja</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Skrining Upaya Kesehatan Kerja (UKK): pajanan risiko di tempat kerja dan deteksi dini Penyakit Akibat Kerja (PAK).
+          </p>
+          <FormKesehatanKerja kunjunganId={kunjungan.id} daftarPemeriksaan={daftarKesehatanKerja} />
         </section>
       )}
 

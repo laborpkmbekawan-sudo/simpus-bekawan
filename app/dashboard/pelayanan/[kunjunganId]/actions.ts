@@ -456,6 +456,82 @@ export async function batalkanKankerTalasemiaAction(id: string, kunjunganId: str
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+export async function catatImunisasiWusAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("skrining_imunisasi_wus").insert({
+    kunjungan_id: kunjunganId,
+    status_tt: String(formData.get("status_tt") ?? "belum_diketahui"),
+    diberikan_hari_ini: formData.get("diberikan_hari_ini") === "ya",
+    jenis_vaksin: teksAtauNull(formData, "jenis_vaksin"),
+    nomor_batch: teksAtauNull(formData, "nomor_batch"),
+    reaksi_kipi: teksAtauNull(formData, "reaksi_kipi"),
+    jadwal_berikutnya: teksAtauNull(formData, "jadwal_berikutnya"),
+    catatan: teksAtauNull(formData, "catatan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining imunisasi WUS: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Skrining imunisasi WUS tersimpan.", sukses: true };
+}
+
+export async function batalkanImunisasiWusAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("skrining_imunisasi_wus").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
+export async function catatKesehatanKerjaAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const angkaAtauNull = (nama: string) => {
+    const nilai = String(formData.get(nama) ?? "").trim();
+    if (!nilai) return null;
+    const angka = Number(nilai);
+    return Number.isFinite(angka) ? angka : null;
+  };
+
+  const { error } = await akses.supabase.from("pemeriksaan_kesehatan_kerja").insert({
+    kunjungan_id: kunjunganId,
+    jenis_pekerjaan: teksAtauNull(formData, "jenis_pekerjaan"),
+    tempat_kerja: teksAtauNull(formData, "tempat_kerja"),
+    lama_bekerja_tahun: angkaAtauNull("lama_bekerja_tahun"),
+    pajanan_risiko: teksAtauNull(formData, "pajanan_risiko"),
+    keluhan_terkait_kerja: teksAtauNull(formData, "keluhan_terkait_kerja"),
+    apd_digunakan: formData.get("apd_digunakan") === "ya",
+    hasil_pemeriksaan_fisik: teksAtauNull(formData, "hasil_pemeriksaan_fisik"),
+    diagnosis_pak: String(formData.get("diagnosis_pak") ?? "tidak_ada"),
+    rekomendasi: teksAtauNull(formData, "rekomendasi"),
+    rujukan: teksAtauNull(formData, "rujukan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan pemeriksaan kesehatan kerja: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Pemeriksaan kesehatan kerja tersimpan.", sukses: true };
+}
+
+export async function batalkanKesehatanKerjaAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("pemeriksaan_kesehatan_kerja").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const pasienId = String(formData.get("pasien_id") ?? "");

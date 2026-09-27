@@ -2951,3 +2951,115 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 36: KLASTER 3 -- SKRINING IMUNISASI WUS (WANITA USIA SUBUR)
+--
+-- Status imunisasi Tetanus Toksoid (TT/Td) buat WUS 15-49 tahun.
+-- Beda dari status_tt di pemeriksaan_kespro_caten (khusus Caten),
+-- ini berlaku buat semua WUS usia dewasa yang dilayani Klaster 3.
+-- Nempel ke kunjungan Klaster 3 usia dewasa. Aman dijalankan
+-- berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.skrining_imunisasi_wus (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  status_tt text not null default 'belum_diketahui' check (status_tt in ('t1', 't2', 't3', 't4', 't5', 'belum_diketahui')),
+  diberikan_hari_ini boolean not null default false,
+  jenis_vaksin text check (jenis_vaksin in ('td', 'tt')),
+  nomor_batch text,
+  reaksi_kipi text,
+  jadwal_berikutnya date,
+  catatan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.skrining_imunisasi_wus is 'Skrining imunisasi TT/Td wanita usia subur (WUS) Klaster 3 usia dewasa, banyak baris per kunjungan';
+
+create index if not exists idx_skrining_imunisasi_wus_kunjungan on public.skrining_imunisasi_wus (kunjungan_id);
+
+alter table public.skrining_imunisasi_wus enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_imunisasi_wus" on public.skrining_imunisasi_wus;
+create policy "semua_pegawai_lihat_imunisasi_wus"
+on public.skrining_imunisasi_wus for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_imunisasi_wus" on public.skrining_imunisasi_wus;
+create policy "peran_klinis_kelola_imunisasi_wus"
+on public.skrining_imunisasi_wus for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_imunisasi_wus" on public.skrining_imunisasi_wus;
+create policy "peran_klinis_ubah_imunisasi_wus"
+on public.skrining_imunisasi_wus for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 37: KLASTER 3 -- KESEHATAN KERJA (UKK, USIA DEWASA)
+--
+-- Skrining Upaya Kesehatan Kerja: pajanan risiko di tempat kerja,
+-- pemakaian APD, dan deteksi dini Penyakit Akibat Kerja (PAK).
+-- Nempel ke kunjungan Klaster 3 usia dewasa. Aman dijalankan
+-- berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.pemeriksaan_kesehatan_kerja (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  jenis_pekerjaan text,
+  tempat_kerja text,
+  lama_bekerja_tahun numeric(4, 1),
+  pajanan_risiko text,
+  keluhan_terkait_kerja text,
+  apd_digunakan boolean not null default false,
+  hasil_pemeriksaan_fisik text,
+  diagnosis_pak text not null default 'tidak_ada' check (diagnosis_pak in ('tidak_ada', 'suspek_pak', 'pak')),
+  rekomendasi text,
+  rujukan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.pemeriksaan_kesehatan_kerja is 'Skrining kesehatan kerja (UKK) Klaster 3 usia dewasa, banyak baris per kunjungan';
+
+alter table public.pemeriksaan_kesehatan_kerja drop constraint if exists pemeriksaan_kesehatan_kerja_check;
+alter table public.pemeriksaan_kesehatan_kerja
+  add constraint pemeriksaan_kesehatan_kerja_check check (
+    lama_bekerja_tahun is null or lama_bekerja_tahun between 0 and 80
+  );
+
+create index if not exists idx_pemeriksaan_kesehatan_kerja_kunjungan on public.pemeriksaan_kesehatan_kerja (kunjungan_id);
+
+alter table public.pemeriksaan_kesehatan_kerja enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_kesehatan_kerja" on public.pemeriksaan_kesehatan_kerja;
+create policy "semua_pegawai_lihat_kesehatan_kerja"
+on public.pemeriksaan_kesehatan_kerja for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_kesehatan_kerja" on public.pemeriksaan_kesehatan_kerja;
+create policy "peran_klinis_kelola_kesehatan_kerja"
+on public.pemeriksaan_kesehatan_kerja for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_kesehatan_kerja" on public.pemeriksaan_kesehatan_kerja;
+create policy "peran_klinis_ubah_kesehatan_kerja"
+on public.pemeriksaan_kesehatan_kerja for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
