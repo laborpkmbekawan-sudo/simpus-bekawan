@@ -2408,3 +2408,132 @@ to authenticated
 using (public.peran_saya() in ('admin', 'kapus', 'manajemen'))
 with check (public.peran_saya() in ('admin', 'kapus', 'manajemen'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 28: KLASTER 3 -- POSBINDU PTM & KONTROL PROLANIS
+--
+-- Dua tabel baru, banyak baris per pasien (bukan satu-satu per kunjungan
+-- kayak pelayanan_ibu/anak) -- posbindu & kontrol prolanis biasanya
+-- kegiatan rutin di posyandu/komunitas, bukan selalu lewat antrean
+-- kunjungan. Pola batal pakai kolom 'dibatalkan', sama seperti
+-- skrining_klaster2. Aman dijalankan berulang kali. Jalankan SEKALI di
+-- Supabase SQL Editor.
+-- =========================================================
+
+-- ---------- A. Kegiatan Posbindu PTM (skrining faktor risiko PTM) ----------
+create table if not exists public.kegiatan_posbindu_ptm (
+  id uuid primary key default gen_random_uuid(),
+  pasien_id uuid not null references public.pasien (id) on delete cascade,
+  posyandu_id uuid references public.posyandu (id),
+  tanggal date not null default current_date,
+  berat_badan numeric(5, 1),
+  tinggi_badan numeric(5, 1),
+  lingkar_perut numeric(5, 1),
+  td_sistolik int,
+  td_diastolik int,
+  gula_darah_sewaktu int,
+  kolesterol_total int,
+  asam_urat numeric(4, 1),
+  faktor_risiko text,
+  hasil_skrining text not null default 'normal' check (hasil_skrining in ('normal', 'perlu_rujukan')),
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.kegiatan_posbindu_ptm is 'Skrining faktor risiko PTM lewat Posbindu, banyak baris per pasien';
+
+alter table public.kegiatan_posbindu_ptm drop constraint if exists kegiatan_posbindu_ptm_check;
+alter table public.kegiatan_posbindu_ptm
+  add constraint kegiatan_posbindu_ptm_check check (
+    (berat_badan is null or berat_badan between 0.5 and 400)
+    and (tinggi_badan is null or tinggi_badan between 20 and 250)
+    and (lingkar_perut is null or lingkar_perut between 30 and 250)
+    and (td_sistolik is null or td_sistolik between 40 and 300)
+    and (td_diastolik is null or td_diastolik between 20 and 200)
+    and (gula_darah_sewaktu is null or gula_darah_sewaktu between 20 and 700)
+    and (kolesterol_total is null or kolesterol_total between 50 and 500)
+    and (asam_urat is null or asam_urat between 0.5 and 30)
+  );
+
+create index if not exists idx_kegiatan_posbindu_ptm_pasien on public.kegiatan_posbindu_ptm (pasien_id);
+create index if not exists idx_kegiatan_posbindu_ptm_tanggal on public.kegiatan_posbindu_ptm (tanggal);
+
+alter table public.kegiatan_posbindu_ptm enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_kegiatan_posbindu_ptm" on public.kegiatan_posbindu_ptm;
+create policy "semua_pegawai_lihat_kegiatan_posbindu_ptm"
+on public.kegiatan_posbindu_ptm for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_kegiatan_posbindu_ptm" on public.kegiatan_posbindu_ptm;
+create policy "peran_klinis_kelola_kegiatan_posbindu_ptm"
+on public.kegiatan_posbindu_ptm for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_kegiatan_posbindu_ptm" on public.kegiatan_posbindu_ptm;
+create policy "peran_klinis_ubah_kegiatan_posbindu_ptm"
+on public.kegiatan_posbindu_ptm for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+-- ---------- B. Kontrol Prolanis (kontrol rutin peserta penyakit kronis) ----------
+create table if not exists public.kontrol_prolanis (
+  id uuid primary key default gen_random_uuid(),
+  pasien_id uuid not null references public.pasien (id) on delete cascade,
+  tanggal_kontrol date not null default current_date,
+  jenis_penyakit text not null check (jenis_penyakit in ('hipertensi', 'diabetes_melitus', 'keduanya')),
+  td_sistolik int,
+  td_diastolik int,
+  gula_darah_puasa int,
+  gula_darah_sewaktu int,
+  berat_badan numeric(5, 1),
+  kepatuhan_obat text not null default 'patuh' check (kepatuhan_obat in ('patuh', 'tidak_patuh')),
+  obat_diberikan text,
+  keluhan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.kontrol_prolanis is 'Kontrol rutin peserta Prolanis (hipertensi/diabetes), banyak baris per pasien';
+
+alter table public.kontrol_prolanis drop constraint if exists kontrol_prolanis_check;
+alter table public.kontrol_prolanis
+  add constraint kontrol_prolanis_check check (
+    (td_sistolik is null or td_sistolik between 40 and 300)
+    and (td_diastolik is null or td_diastolik between 20 and 200)
+    and (gula_darah_puasa is null or gula_darah_puasa between 20 and 700)
+    and (gula_darah_sewaktu is null or gula_darah_sewaktu between 20 and 700)
+    and (berat_badan is null or berat_badan between 0.5 and 400)
+  );
+
+create index if not exists idx_kontrol_prolanis_pasien on public.kontrol_prolanis (pasien_id);
+create index if not exists idx_kontrol_prolanis_tanggal on public.kontrol_prolanis (tanggal_kontrol);
+
+alter table public.kontrol_prolanis enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_kontrol_prolanis" on public.kontrol_prolanis;
+create policy "semua_pegawai_lihat_kontrol_prolanis"
+on public.kontrol_prolanis for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_kontrol_prolanis" on public.kontrol_prolanis;
+create policy "peran_klinis_kelola_kontrol_prolanis"
+on public.kontrol_prolanis for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_kontrol_prolanis" on public.kontrol_prolanis;
+create policy "peran_klinis_ubah_kontrol_prolanis"
+on public.kontrol_prolanis for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
