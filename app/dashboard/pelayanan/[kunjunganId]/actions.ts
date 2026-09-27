@@ -380,6 +380,82 @@ export async function batalkanPenyakitMenularAction(id: string, kunjunganId: str
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+export async function catatSkriningPtmAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const angkaAtauNull = (nama: string) => {
+    const nilai = String(formData.get(nama) ?? "").trim();
+    if (!nilai) return null;
+    const angka = Number(nilai);
+    return Number.isFinite(angka) ? angka : null;
+  };
+
+  const { error } = await akses.supabase.from("skrining_ptm_terstruktur").insert({
+    kunjungan_id: kunjunganId,
+    berat_badan: angkaAtauNull("berat_badan"),
+    tinggi_badan: angkaAtauNull("tinggi_badan"),
+    imt: angkaAtauNull("imt"),
+    lingkar_perut: angkaAtauNull("lingkar_perut"),
+    td_sistolik: angkaAtauNull("td_sistolik"),
+    td_diastolik: angkaAtauNull("td_diastolik"),
+    gula_darah_puasa: angkaAtauNull("gula_darah_puasa"),
+    gula_darah_sewaktu: angkaAtauNull("gula_darah_sewaktu"),
+    kolesterol_total: angkaAtauNull("kolesterol_total"),
+    asam_urat: angkaAtauNull("asam_urat"),
+    faktor_risiko: teksAtauNull(formData, "faktor_risiko"),
+    hasil_skrining: String(formData.get("hasil_skrining") ?? "normal"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining PTM: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Skrining PTM tersimpan.", sukses: true };
+}
+
+export async function batalkanSkriningPtmAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("skrining_ptm_terstruktur").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
+export async function catatKankerTalasemiaAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("skrining_kanker_talasemia").insert({
+    kunjungan_id: kunjunganId,
+    hasil_iva: String(formData.get("hasil_iva") ?? "tidak_dilakukan"),
+    hasil_sadanis: String(formData.get("hasil_sadanis") ?? "tidak_dilakukan"),
+    hasil_talasemia: String(formData.get("hasil_talasemia") ?? "tidak_diperiksa"),
+    catatan_temuan: teksAtauNull(formData, "catatan_temuan"),
+    rujukan: teksAtauNull(formData, "rujukan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Skrining kanker & talasemia tersimpan.", sukses: true };
+}
+
+export async function batalkanKankerTalasemiaAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("skrining_kanker_talasemia").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const pasienId = String(formData.get("pasien_id") ?? "");

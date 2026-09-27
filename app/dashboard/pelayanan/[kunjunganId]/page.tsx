@@ -12,6 +12,8 @@ import FormSkriningKlaster3, { type SkriningKlaster3Tercatat } from "./form-skri
 import FormSkriningKeswa, { type SkriningKeswaTercatat } from "./form-skrining-keswa";
 import FormKesproCaten, { type KesproCatenTercatat } from "./form-kespro-caten";
 import FormPenyakitMenular, { type PenyakitMenularTercatat } from "./form-penyakit-menular";
+import FormSkriningPtm, { type SkriningPtmTercatat } from "./form-skrining-ptm";
+import FormKankerTalasemia, { type KankerTalasemiaTercatat } from "./form-kanker-talasemia";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -207,6 +209,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarSkriningKeswaMentah },
     { data: daftarKesproCatenMentah },
     { data: daftarPenyakitMenularMentah },
+    { data: daftarSkriningPtmMentah },
+    { data: daftarKankerTalasemiaMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -303,6 +307,22 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
       : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "dewasa"
+      ? supabase
+          .from("skrining_ptm_terstruktur")
+          .select("id, td_sistolik, td_diastolik, gula_darah_puasa, gula_darah_sewaktu, imt, hasil_skrining, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "dewasa"
+      ? supabase
+          .from("skrining_kanker_talasemia")
+          .select("id, hasil_iva, hasil_sadanis, hasil_talasemia, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
@@ -313,6 +333,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarSkriningKeswa = (daftarSkriningKeswaMentah ?? []) as unknown as SkriningKeswaTercatat[];
   const daftarKesproCaten = (daftarKesproCatenMentah ?? []) as unknown as KesproCatenTercatat[];
   const daftarPenyakitMenular = (daftarPenyakitMenularMentah ?? []) as unknown as PenyakitMenularTercatat[];
+  const daftarSkriningPtm = (daftarSkriningPtmMentah ?? []) as unknown as SkriningPtmTercatat[];
+  const daftarKankerTalasemia = (daftarKankerTalasemiaMentah ?? []) as unknown as KankerTalasemiaTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -493,6 +515,26 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
             Skrining terstruktur TB, HIV, dan IMS. Hasil positif/reaktif otomatis ditandai buat rekap laporan.
           </p>
           <FormPenyakitMenular kunjunganId={kunjungan.id} kelompokUsia={kelompokUsiaK3} daftarPemeriksaan={daftarPenyakitMenular} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "dewasa" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining PTM Terstruktur</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Tekanan darah, gula darah, IMT, lingkar perut. Versi dalam gedung, terpisah dari Posbindu luar gedung.
+          </p>
+          <FormSkriningPtm kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningPtm} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "dewasa" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Kanker & Talasemia</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Deteksi dini kanker leher rahim (IVA), kanker payudara (SADANIS), dan pembawa sifat talasemia.
+          </p>
+          <FormKankerTalasemia kunjunganId={kunjungan.id} daftarPemeriksaan={daftarKankerTalasemia} />
         </section>
       )}
 

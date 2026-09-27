@@ -2831,3 +2831,123 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 34: KLASTER 3 -- SKRINING PTM TERSTRUKTUR (DALAM GEDUNG, DEWASA)
+--
+-- Beda dari kegiatan_posbindu_ptm (luar gedung, per pasien lewat
+-- Posyandu). Ini versi dalam gedung, nempel ke kunjungan Klaster 3
+-- usia dewasa/produktif. Aman dijalankan berulang kali.
+-- Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.skrining_ptm_terstruktur (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  berat_badan numeric(5, 1),
+  tinggi_badan numeric(5, 1),
+  imt numeric(4, 1),
+  lingkar_perut numeric(5, 1),
+  td_sistolik int,
+  td_diastolik int,
+  gula_darah_puasa int,
+  gula_darah_sewaktu int,
+  kolesterol_total int,
+  asam_urat numeric(4, 1),
+  faktor_risiko text,
+  hasil_skrining text not null default 'normal' check (hasil_skrining in ('normal', 'perlu_rujukan')),
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.skrining_ptm_terstruktur is 'Skrining faktor risiko PTM dalam gedung Klaster 3 usia dewasa, banyak baris per kunjungan';
+
+alter table public.skrining_ptm_terstruktur drop constraint if exists skrining_ptm_terstruktur_check;
+alter table public.skrining_ptm_terstruktur
+  add constraint skrining_ptm_terstruktur_check check (
+    (berat_badan is null or berat_badan between 0.5 and 400)
+    and (tinggi_badan is null or tinggi_badan between 20 and 250)
+    and (imt is null or imt between 5 and 80)
+    and (lingkar_perut is null or lingkar_perut between 30 and 250)
+    and (td_sistolik is null or td_sistolik between 40 and 300)
+    and (td_diastolik is null or td_diastolik between 20 and 200)
+    and (gula_darah_puasa is null or gula_darah_puasa between 20 and 700)
+    and (gula_darah_sewaktu is null or gula_darah_sewaktu between 20 and 700)
+    and (kolesterol_total is null or kolesterol_total between 50 and 500)
+    and (asam_urat is null or asam_urat between 0.5 and 30)
+  );
+
+create index if not exists idx_skrining_ptm_terstruktur_kunjungan on public.skrining_ptm_terstruktur (kunjungan_id);
+
+alter table public.skrining_ptm_terstruktur enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_skrining_ptm_terstruktur" on public.skrining_ptm_terstruktur;
+create policy "semua_pegawai_lihat_skrining_ptm_terstruktur"
+on public.skrining_ptm_terstruktur for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_skrining_ptm_terstruktur" on public.skrining_ptm_terstruktur;
+create policy "peran_klinis_kelola_skrining_ptm_terstruktur"
+on public.skrining_ptm_terstruktur for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_skrining_ptm_terstruktur" on public.skrining_ptm_terstruktur;
+create policy "peran_klinis_ubah_skrining_ptm_terstruktur"
+on public.skrining_ptm_terstruktur for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 35: KLASTER 3 -- SKRINING KANKER & TALASEMIA TERSTRUKTUR (DEWASA)
+--
+-- IVA/SADANIS (deteksi dini kanker leher rahim & payudara) plus
+-- skrining pembawa sifat talasemia usia produktif. Nempel ke
+-- kunjungan Klaster 3 usia dewasa. Aman dijalankan berulang kali.
+-- Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.skrining_kanker_talasemia (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  hasil_iva text not null default 'tidak_dilakukan' check (hasil_iva in ('tidak_dilakukan', 'normal', 'positif')),
+  hasil_sadanis text not null default 'tidak_dilakukan' check (hasil_sadanis in ('tidak_dilakukan', 'normal', 'benjolan_dicurigai')),
+  hasil_talasemia text not null default 'tidak_diperiksa' check (hasil_talasemia in ('tidak_diperiksa', 'negatif', 'carrier_suspek')),
+  catatan_temuan text,
+  rujukan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.skrining_kanker_talasemia is 'Skrining kanker (IVA/SADANIS) & talasemia Klaster 3 usia dewasa, banyak baris per kunjungan';
+
+create index if not exists idx_skrining_kanker_talasemia_kunjungan on public.skrining_kanker_talasemia (kunjungan_id);
+
+alter table public.skrining_kanker_talasemia enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_kanker_talasemia" on public.skrining_kanker_talasemia;
+create policy "semua_pegawai_lihat_kanker_talasemia"
+on public.skrining_kanker_talasemia for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_kanker_talasemia" on public.skrining_kanker_talasemia;
+create policy "peran_klinis_kelola_kanker_talasemia"
+on public.skrining_kanker_talasemia for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_kanker_talasemia" on public.skrining_kanker_talasemia;
+create policy "peran_klinis_ubah_kanker_talasemia"
+on public.skrining_kanker_talasemia for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
