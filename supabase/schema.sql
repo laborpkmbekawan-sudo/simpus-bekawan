@@ -2721,3 +2721,113 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 32: KLASTER 3 -- SKRINING PENYAKIT MENULAR TERSTRUKTUR (TB/HIV/IMS)
+--
+-- Sebelumnya skrining penyakit menular cuma satu baris generik di
+-- skrining_klaster3 (teks bebas). TAHAP ini bikin tabel khusus biar
+-- hasil TB/HIV/IMS terstruktur dan bisa direkap. Berlaku buat usia
+-- dewasa maupun lansia (kelompok_usia sama kayak skrining_klaster3).
+-- Banyak baris per kunjungan. Aman dijalankan berulang kali.
+-- Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.pemeriksaan_penyakit_menular (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  kelompok_usia text not null default 'dewasa' check (kelompok_usia in ('dewasa', 'lansia')),
+  terduga_tb boolean not null default false,
+  gejala_tb text,
+  hasil_pemeriksaan_tb text not null default 'tidak_diperiksa'
+    check (hasil_pemeriksaan_tb in ('tidak_diperiksa', 'negatif', 'positif_bakteriologis', 'positif_klinis')),
+  status_pengobatan_tb text not null default 'tidak_menjalani'
+    check (status_pengobatan_tb in ('tidak_menjalani', 'baru_mulai', 'dalam_pengobatan', 'selesai_sembuh', 'putus_obat')),
+  kelompok_risiko_hiv text,
+  hasil_hiv text not null default 'tidak_diperiksa' check (hasil_hiv in ('tidak_diperiksa', 'non_reaktif', 'reaktif')),
+  gejala_ims text,
+  hasil_ims text not null default 'tidak_diperiksa' check (hasil_ims in ('tidak_diperiksa', 'negatif', 'positif')),
+  jenis_ims text,
+  konseling_diberikan text,
+  rujukan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.pemeriksaan_penyakit_menular is 'Skrining penyakit menular terstruktur TB/HIV/IMS Klaster 3 (dewasa/lansia), banyak baris per kunjungan';
+
+create index if not exists idx_pemeriksaan_penyakit_menular_kunjungan on public.pemeriksaan_penyakit_menular (kunjungan_id);
+
+alter table public.pemeriksaan_penyakit_menular enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_penyakit_menular" on public.pemeriksaan_penyakit_menular;
+create policy "semua_pegawai_lihat_penyakit_menular"
+on public.pemeriksaan_penyakit_menular for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_penyakit_menular" on public.pemeriksaan_penyakit_menular;
+create policy "peran_klinis_kelola_penyakit_menular"
+on public.pemeriksaan_penyakit_menular for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_penyakit_menular" on public.pemeriksaan_penyakit_menular;
+create policy "peran_klinis_ubah_penyakit_menular"
+on public.pemeriksaan_penyakit_menular for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 33: KLASTER 3 -- JADWAL POSBINDU/POSYANDU LANSIA PER LOKASI
+--
+-- Registrasi jadwal kegiatan Posbindu PTM & Posyandu Lansia per
+-- posyandu (posyandu udah punya lokasi_id, jadi otomatis per lokasi/
+-- Pustu). Berdiri sendiri, gak nempel ke kunjungan -- dipakai buat
+-- rencana kegiatan luar gedung. Aman dijalankan berulang kali.
+-- Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.jadwal_posbindu_lansia (
+  id uuid primary key default gen_random_uuid(),
+  posyandu_id uuid not null references public.posyandu (id) on delete cascade,
+  jenis_kegiatan text not null check (jenis_kegiatan in ('posbindu_ptm', 'posyandu_lansia')),
+  tanggal_pelaksanaan date not null,
+  jam_mulai time,
+  penanggung_jawab_id uuid references public.pegawai (id),
+  status text not null default 'terjadwal' check (status in ('terjadwal', 'selesai', 'dibatalkan')),
+  catatan text,
+  dibuat_oleh uuid references public.pegawai (id),
+  dibuat_pada timestamptz not null default now()
+);
+
+comment on table public.jadwal_posbindu_lansia is 'Jadwal kegiatan Posbindu PTM & Posyandu Lansia per posyandu/lokasi';
+
+create index if not exists idx_jadwal_posbindu_lansia_tanggal on public.jadwal_posbindu_lansia (tanggal_pelaksanaan);
+create index if not exists idx_jadwal_posbindu_lansia_posyandu on public.jadwal_posbindu_lansia (posyandu_id);
+
+alter table public.jadwal_posbindu_lansia enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_jadwal_posbindu_lansia" on public.jadwal_posbindu_lansia;
+create policy "semua_pegawai_lihat_jadwal_posbindu_lansia"
+on public.jadwal_posbindu_lansia for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_jadwal_posbindu_lansia" on public.jadwal_posbindu_lansia;
+create policy "peran_klinis_kelola_jadwal_posbindu_lansia"
+on public.jadwal_posbindu_lansia for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_jadwal_posbindu_lansia" on public.jadwal_posbindu_lansia;
+create policy "peran_klinis_ubah_jadwal_posbindu_lansia"
+on public.jadwal_posbindu_lansia for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================

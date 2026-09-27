@@ -338,6 +338,48 @@ export async function batalkanKesproCatenAction(id: string, kunjunganId: string)
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+export async function catatPenyakitMenularAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("pemeriksaan_penyakit_menular").insert({
+    kunjungan_id: kunjunganId,
+    kelompok_usia: String(formData.get("kelompok_usia") ?? "dewasa"),
+    terduga_tb: formData.get("terduga_tb") === "ya",
+    gejala_tb: teksAtauNull(formData, "gejala_tb"),
+    hasil_pemeriksaan_tb: String(formData.get("hasil_pemeriksaan_tb") ?? "tidak_diperiksa"),
+    status_pengobatan_tb: String(formData.get("status_pengobatan_tb") ?? "tidak_menjalani"),
+    kelompok_risiko_hiv: teksAtauNull(formData, "kelompok_risiko_hiv"),
+    hasil_hiv: String(formData.get("hasil_hiv") ?? "tidak_diperiksa"),
+    gejala_ims: teksAtauNull(formData, "gejala_ims"),
+    hasil_ims: String(formData.get("hasil_ims") ?? "tidak_diperiksa"),
+    jenis_ims: teksAtauNull(formData, "jenis_ims"),
+    konseling_diberikan: teksAtauNull(formData, "konseling_diberikan"),
+    rujukan: teksAtauNull(formData, "rujukan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Skrining penyakit menular tersimpan.", sukses: true };
+}
+
+export async function batalkanPenyakitMenularAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase
+    .from("pemeriksaan_penyakit_menular")
+    .update({ dibatalkan: true })
+    .eq("id", id)
+    .eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const pasienId = String(formData.get("pasien_id") ?? "");
