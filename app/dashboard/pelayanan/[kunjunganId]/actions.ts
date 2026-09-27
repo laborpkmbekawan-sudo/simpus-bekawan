@@ -787,6 +787,67 @@ export async function batalkanTindakanAction(tindakanId: string, kunjunganId: st
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+export async function tambahResepObatAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const obatId = String(formData.get("obat_id") ?? "");
+  const jumlah = Number(formData.get("jumlah") ?? 0);
+  const aturanPakai = String(formData.get("aturan_pakai") ?? "").trim();
+
+  if (!obatId || !(jumlah > 0)) return { pesan: "Pilih obat dan isi jumlah yang valid.", sukses: false };
+
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  // Satu resep aktif (status menunggu) per kunjungan -- item baru numpuk
+  // di situ. Kalau belum ada / resep sebelumnya udah lanjut ke farmasi,
+  // bikin header baru.
+  let resepId: string | null = null;
+  const { data: resepAktif } = await akses.supabase
+    .from("resep_obat")
+    .select("id")
+    .eq("kunjungan_id", kunjunganId)
+    .eq("status", "menunggu")
+    .maybeSingle();
+
+  if (resepAktif) {
+    resepId = resepAktif.id;
+  } else {
+    const { data: resepBaru, error: errResep } = await akses.supabase
+      .from("resep_obat")
+      .insert({ kunjungan_id: kunjunganId, dicatat_oleh: akses.pemanggil.id })
+      .select("id")
+      .single();
+    if (errResep || !resepBaru) return { pesan: `Gagal membuat resep: ${errResep?.message}`, sukses: false };
+    resepId = resepBaru.id;
+  }
+
+  const { error } = await akses.supabase.from("resep_obat_item").insert({
+    resep_obat_id: resepId,
+    obat_id: obatId,
+    jumlah,
+    aturan_pakai: aturanPakai || null,
+  });
+
+  if (error) return { pesan: `Gagal menambah item resep: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Item resep ditambahkan.", sukses: true };
+}
+
+export async function hapusItemResepObatAction(itemId: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+  await akses.supabase.from("resep_obat_item").delete().eq("id", itemId);
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
+export async function batalkanResepObatKlinisAction(resepObatId: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+  await akses.supabase.rpc("batalkan_resep_obat", { p_resep_obat_id: resepObatId });
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function selesaikanPelayananAction(kunjunganId: string) {
   const akses = await cekAkses(kunjunganId);
   if (!akses.ok) return;

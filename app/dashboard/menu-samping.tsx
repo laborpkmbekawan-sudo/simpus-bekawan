@@ -146,10 +146,14 @@ const MENU: Grup[] = [
     ],
   },
   {
-    label: "Farmasi (BHP)",
-    href: "/dashboard/farmasi",
+    label: "Farmasi",
     peranBoleh: ["admin", "farmasi"],
     kodeAksesButuh: "lintas_farmasi",
+    anak: [
+      { href: "/dashboard/farmasi", label: "Data Obat & BHP" },
+      { href: "/dashboard/farmasi/mutasi", label: "Mutasi & Penerimaan" },
+      { href: "/dashboard/farmasi/resep", label: "Verifikasi & Penyerahan Resep" },
+    ],
   },
   {
     label: "Laporan Internal",
