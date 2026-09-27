@@ -63,6 +63,8 @@ const MENU: Grup[] = [
     peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
     anak: [
       { href: "/dashboard/klaster3", label: "Dashboard" },
+      { href: "/dashboard/klaster3/dewasa", label: "Pelayanan Usia Dewasa" },
+      { href: "/dashboard/klaster3/lansia", label: "Pelayanan Lansia" },
       { href: "/dashboard/klaster3/posbindu", label: "Posbindu PTM & Prolanis" },
     ],
   },

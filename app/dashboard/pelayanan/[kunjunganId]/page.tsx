@@ -8,6 +8,7 @@ import FormPelayananIbu, { type DataPelayananIbu } from "./form-pelayanan-ibu";
 import FormPelayananAnak, { type DataPelayananAnak } from "./form-pelayanan-anak";
 import FormSkrining, { type SkriningTercatat } from "./form-skrining";
 import FormImunisasi, { type ImunisasiTercatat } from "./form-imunisasi";
+import FormSkriningKlaster3, { type SkriningKlaster3Tercatat } from "./form-skrining-klaster3";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -51,6 +52,20 @@ function hitungUmur(tanggalLahir: string | null) {
     (sekarang.getMonth() === lahir.getMonth() && sekarang.getDate() < lahir.getDate());
   if (belum) umur -= 1;
   return `${umur} tahun`;
+}
+
+// Angka umur mentah, dipakai buat nentuin kelompok Klaster 3 (dewasa/lansia).
+// Kemenkes: lansia >= 60 tahun.
+function umurAngka(tanggalLahir: string | null): number | null {
+  if (!tanggalLahir) return null;
+  const lahir = new Date(tanggalLahir);
+  const sekarang = new Date();
+  let umur = sekarang.getFullYear() - lahir.getFullYear();
+  const belum =
+    sekarang.getMonth() < lahir.getMonth() ||
+    (sekarang.getMonth() === lahir.getMonth() && sekarang.getDate() < lahir.getDate());
+  if (belum) umur -= 1;
+  return umur;
 }
 
 function Pesan({ judul, isi, href, labelHref }: { judul: string; isi: string; href: string; labelHref: string }) {
@@ -130,6 +145,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const pasien = pasienData as unknown as Pasien;
   const klaster = klasterData as { kode: string; nama: string; kode_antrian: string | null } | null;
   const klaster2 = klaster?.kode === "klaster_2";
+  const klaster3 = klaster?.kode === "klaster_3";
+  const kelompokUsiaK3: "dewasa" | "lansia" = (umurAngka(pasien.tanggal_lahir) ?? 0) >= 60 ? "lansia" : "dewasa";
   const skrining = skriningData as unknown as Skrining | null;
 
   if (!PERAN_KLINIS.includes(pemanggil.peran)) {
@@ -183,6 +200,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: pelayananAnakData },
     { data: daftarSkriningMentah },
     { data: riwayatImunisasiMentah },
+    { data: daftarSkriningK3Mentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -245,12 +263,22 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("tanggal_pemberian", { ascending: false })
       : Promise.resolve({ data: null }),
+    klaster3
+      ? supabase
+          .from("skrining_klaster3")
+          .select("id, jenis_skrining, klasifikasi, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("kelompok_usia", kelompokUsiaK3)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
   const dataAnak = (pelayananAnakData ?? null) as unknown as DataPelayananAnak | null;
   const daftarSkrining = (daftarSkriningMentah ?? []) as unknown as SkriningTercatat[];
   const riwayatImunisasi = (riwayatImunisasiMentah ?? []) as unknown as ImunisasiTercatat[];
+  const daftarSkriningK3 = (daftarSkriningK3Mentah ?? []) as unknown as SkriningKlaster3Tercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -408,6 +436,19 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           <h2 className="text-base font-bold text-ink">Imunisasi</h2>
           <p className="mb-4 mt-0.5 text-xs text-ink/50">Riwayat di bawah gabungan semua kunjungan pasien ini, bukan cuma kunjungan sekarang.</p>
           <FormImunisasi kunjunganId={kunjungan.id} pasienId={pasien.id} riwayat={riwayatImunisasi} />
+        </section>
+      )}
+
+      {klaster3 && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">
+            {kelompokUsiaK3 === "lansia" ? "Skrining Lansia & Geriatri" : "Skrining Usia Dewasa (Produktif)"}
+          </h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Kelompok ditentukan otomatis dari umur pasien ({hitungUmur(pasien.tanggal_lahir)}). Bisa lebih dari satu jenis
+            skrining per kunjungan.
+          </p>
+          <FormSkriningKlaster3 kunjunganId={kunjungan.id} kelompokUsia={kelompokUsiaK3} daftarSkrining={daftarSkriningK3} />
         </section>
       )}
 

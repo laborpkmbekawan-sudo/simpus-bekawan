@@ -2537,3 +2537,64 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 29: KLASTER 3 -- SKRINING TERSTRUKTUR USIA DEWASA & LANSIA
+--
+-- Satu tabel buat dua menu (Pelayanan Usia Dewasa & Pelayanan Lansia),
+-- dibedakan lewat kolom 'kelompok_usia'. Banyak baris per kunjungan,
+-- sama pola dengan skrining_klaster2. Diisi lewat halaman Pelayanan yang
+-- sudah ada (muncul kalau kunjungan ditujukan ke Klaster 3). Aman
+-- dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.skrining_klaster3 (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  kelompok_usia text not null check (kelompok_usia in ('dewasa', 'lansia')),
+  jenis_skrining text not null check (
+    jenis_skrining in (
+      -- Usia Dewasa (produktif)
+      'pemeriksaan_umum', 'skrining_ptm', 'skrining_kanker_talasemia', 'skrining_penyakit_menular',
+      'kesehatan_reproduksi_caten', 'skrining_imunisasi_wus', 'skrining_jiwa_kebugaran', 'kesehatan_kerja',
+      -- Lansia (skrining_penyakit_menular dipakai bareng kelompok dewasa)
+      'pemeriksaan_umum_ptm_lansia', 'skrining_geriatri', 'skrining_indera_penglihatan', 'terapi_terpadu_lansia'
+    )
+  ),
+  hasil_pemeriksaan text,
+  klasifikasi text,
+  masalah_ditemukan text,
+  tindakan text,
+  edukasi text,
+  rujukan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.skrining_klaster3 is 'Skrining terstruktur Klaster 3 (usia dewasa & lansia), banyak baris per kunjungan';
+
+create index if not exists idx_skrining_klaster3_kunjungan on public.skrining_klaster3 (kunjungan_id);
+
+alter table public.skrining_klaster3 enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_skrining_klaster3" on public.skrining_klaster3;
+create policy "semua_pegawai_lihat_skrining_klaster3"
+on public.skrining_klaster3 for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_skrining_klaster3" on public.skrining_klaster3;
+create policy "peran_klinis_kelola_skrining_klaster3"
+on public.skrining_klaster3 for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_skrining_klaster3" on public.skrining_klaster3;
+create policy "peran_klinis_ubah_skrining_klaster3"
+on public.skrining_klaster3 for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
