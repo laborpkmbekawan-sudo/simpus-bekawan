@@ -1,12 +1,30 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 import TabelDaftarPasien from "./tabel-daftar-pasien";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export default async function HalamanPasien({
   searchParams,
 }: {
   searchParams: { tanggal?: string; baru?: string };
 }) {
+  // Gerbang akses beneran (bukan cuma nyembunyiin menu) -- patokannya baris
+  // akses_klaster kode "lintas_pendaftaran", admin selalu lolos.
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil) redirect("/login?alasan=perlu-login");
+  const kodeAkses = await getKodeAksesSaya(pemanggil.id, pemanggil.peran);
+  if (!punyaAkses(kodeAkses, "lintas_pendaftaran")) {
+    return (
+      <div className="mx-auto max-w-lg rounded-card border border-sand-100 bg-white p-8 text-center">
+        <p className="text-lg font-bold text-ink">Gak ada akses</p>
+        <p className="mt-2 text-sm text-ink/60">
+          Akunmu belum dikasih akses ke Pendaftaran. Minta admin nambahin akses klaster
+          &quot;Lintas Klaster - Pendaftaran&quot; di halaman Data Pegawai.
+        </p>
+      </div>
+    );
+  }
+
   const supabase = createClient();
   const tanggal = searchParams.tanggal || new Date().toISOString().slice(0, 10);
 

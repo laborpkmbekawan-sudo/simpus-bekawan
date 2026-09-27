@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
+import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 
 export async function tambahPasienAction(
   _sebelum: { pesan: string } | null,
@@ -11,6 +11,10 @@ export async function tambahPasienAction(
   const pemanggil = await getPegawaiSaya();
   if (!pemanggil) {
     return { pesan: "Sesi login gak ditemukan, coba masuk ulang." };
+  }
+  const kodeAkses = await getKodeAksesSaya(pemanggil.id, pemanggil.peran);
+  if (!punyaAkses(kodeAkses, "lintas_pendaftaran")) {
+    return { pesan: "Akunmu gak punya akses ke Pendaftaran." };
   }
 
   const nik = String(formData.get("nik") ?? "").trim();
