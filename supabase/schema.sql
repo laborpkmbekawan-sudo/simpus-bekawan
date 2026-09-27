@@ -2598,3 +2598,58 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 30: KLASTER 3 -- SKRINING KESEHATAN JIWA (SRQ-20)
+--
+-- Instrumen SRQ-20 (Self Reporting Questionnaire, WHO/Kemenkes) buat
+-- deteksi dini masalah kesehatan jiwa emosional pada usia produktif.
+-- jawaban_ya nyimpen nomor soal (1-20) yang dijawab "Ya". skor dan
+-- kategori dihitung ulang di server action, bukan percaya input klien.
+-- Satu kunjungan bisa lebih dari satu kali skrining (jarang, tapi
+-- gak dilarang -- misalnya ulang setelah rujukan). Aman dijalankan
+-- berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.skrining_keswa (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  jawaban_ya smallint[] not null default '{}',
+  skor int not null default 0,
+  kategori text not null default 'tidak_terindikasi' check (kategori in ('tidak_terindikasi', 'terindikasi_masalah_emosional')),
+  catatan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.skrining_keswa is 'Skrining kesehatan jiwa SRQ-20 Klaster 3 (usia dewasa/produktif), banyak baris per kunjungan';
+
+alter table public.skrining_keswa drop constraint if exists skrining_keswa_skor_check;
+alter table public.skrining_keswa
+  add constraint skrining_keswa_skor_check check (skor between 0 and 20);
+
+create index if not exists idx_skrining_keswa_kunjungan on public.skrining_keswa (kunjungan_id);
+
+alter table public.skrining_keswa enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_skrining_keswa" on public.skrining_keswa;
+create policy "semua_pegawai_lihat_skrining_keswa"
+on public.skrining_keswa for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_skrining_keswa" on public.skrining_keswa;
+create policy "peran_klinis_kelola_skrining_keswa"
+on public.skrining_keswa for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_skrining_keswa" on public.skrining_keswa;
+create policy "peran_klinis_ubah_skrining_keswa"
+on public.skrining_keswa for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================

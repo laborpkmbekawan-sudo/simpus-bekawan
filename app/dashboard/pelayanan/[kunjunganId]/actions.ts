@@ -232,6 +232,61 @@ export async function batalkanSkriningKlaster3Action(skriningId: string, kunjung
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+// ---------- Klaster 3: Skrining Kesehatan Jiwa (SRQ-20) ----------
+// Skor & kategori dihitung ulang di sini dari checkbox yang beneran
+// dikirim, bukan percaya field tersembunyi dari klien.
+const SOAL_BUNUH_DIRI = 17; // "Apakah anda mempunyai pikiran mengakhiri hidup?" -- terindikasi walau skor total rendah.
+const AMBANG_SKOR_TERINDIKASI = 6;
+
+export async function catatSkriningKeswaAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const jawabanYa: number[] = [];
+  for (let nomor = 1; nomor <= 20; nomor++) {
+    if (formData.get(`jiwa_q${nomor}`) === "ya") jawabanYa.push(nomor);
+  }
+
+  const skor = jawabanYa.length;
+  const kategori =
+    skor >= AMBANG_SKOR_TERINDIKASI || jawabanYa.includes(SOAL_BUNUH_DIRI)
+      ? "terindikasi_masalah_emosional"
+      : "tidak_terindikasi";
+
+  const { error } = await akses.supabase.from("skrining_keswa").insert({
+    kunjungan_id: kunjunganId,
+    jawaban_ya: jawabanYa,
+    skor,
+    kategori,
+    catatan: teksAtauNull(formData, "catatan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining jiwa: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  const pesanKategori =
+    kategori === "terindikasi_masalah_emosional"
+      ? "Skrining tersimpan. Skor menunjukkan indikasi masalah kesehatan jiwa emosional -- pertimbangkan rujukan."
+      : "Skrining tersimpan.";
+  return { pesan: pesanKategori, sukses: true };
+}
+
+export async function batalkanSkriningKeswaAction(skriningId: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase
+    .from("skrining_keswa")
+    .update({ dibatalkan: true })
+    .eq("id", skriningId)
+    .eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const pasienId = String(formData.get("pasien_id") ?? "");

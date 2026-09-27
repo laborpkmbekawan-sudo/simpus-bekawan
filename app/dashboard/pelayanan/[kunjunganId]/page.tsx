@@ -9,6 +9,7 @@ import FormPelayananAnak, { type DataPelayananAnak } from "./form-pelayanan-anak
 import FormSkrining, { type SkriningTercatat } from "./form-skrining";
 import FormImunisasi, { type ImunisasiTercatat } from "./form-imunisasi";
 import FormSkriningKlaster3, { type SkriningKlaster3Tercatat } from "./form-skrining-klaster3";
+import FormSkriningKeswa, { type SkriningKeswaTercatat } from "./form-skrining-keswa";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -201,6 +202,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarSkriningMentah },
     { data: riwayatImunisasiMentah },
     { data: daftarSkriningK3Mentah },
+    { data: daftarSkriningKeswaMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -272,6 +274,14 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
       : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "dewasa"
+      ? supabase
+          .from("skrining_keswa")
+          .select("id, jawaban_ya, skor, kategori, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
@@ -279,6 +289,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarSkrining = (daftarSkriningMentah ?? []) as unknown as SkriningTercatat[];
   const riwayatImunisasi = (riwayatImunisasiMentah ?? []) as unknown as ImunisasiTercatat[];
   const daftarSkriningK3 = (daftarSkriningK3Mentah ?? []) as unknown as SkriningKlaster3Tercatat[];
+  const daftarSkriningKeswa = (daftarSkriningKeswaMentah ?? []) as unknown as SkriningKeswaTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -449,6 +460,17 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
             skrining per kunjungan.
           </p>
           <FormSkriningKlaster3 kunjunganId={kunjungan.id} kelompokUsia={kelompokUsiaK3} daftarSkrining={daftarSkriningK3} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "dewasa" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Kesehatan Jiwa (SRQ-20)</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Deteksi dini masalah kesehatan jiwa emosional pada usia produktif. Skor 6 ke atas, atau jawaban "Ya" pada soal
+            risiko bunuh diri, terindikasi perlu tindak lanjut.
+          </p>
+          <FormSkriningKeswa kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningKeswa} />
         </section>
       )}
 
