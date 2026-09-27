@@ -18,6 +18,7 @@ import FormImunisasiWus, { type ImunisasiWusTercatat } from "./form-imunisasi-wu
 import FormKesehatanKerja, { type KesehatanKerjaTercatat } from "./form-kesehatan-kerja";
 import FormUmumPtmLansia, { type UmumPtmLansiaTercatat } from "./form-umum-ptm-lansia";
 import FormTerapiTerpaduLansia, { type TerapiTerpaduLansiaTercatat } from "./form-terapi-terpadu-lansia";
+import FormSkriningGeriatri, { type SkriningGeriatriTercatat } from "./form-skrining-geriatri";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -219,6 +220,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarKesehatanKerjaMentah },
     { data: daftarUmumPtmLansiaMentah },
     { data: daftarTerapiTerpaduLansiaMentah },
+    { data: daftarSkriningGeriatriMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -363,6 +365,14 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
       : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "lansia"
+      ? supabase
+          .from("skrining_geriatri")
+          .select("id, adl_skor, adl_kategori, gds_skor, gds_kategori, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
@@ -379,6 +389,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarKesehatanKerja = (daftarKesehatanKerjaMentah ?? []) as unknown as KesehatanKerjaTercatat[];
   const daftarUmumPtmLansia = (daftarUmumPtmLansiaMentah ?? []) as unknown as UmumPtmLansiaTercatat[];
   const daftarTerapiTerpaduLansia = (daftarTerapiTerpaduLansiaMentah ?? []) as unknown as TerapiTerpaduLansiaTercatat[];
+  const daftarSkriningGeriatri = (daftarSkriningGeriatriMentah ?? []) as unknown as SkriningGeriatriTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -630,6 +641,16 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
             Tekanan darah, gula darah, IMT, dan status gizi khusus kelompok lansia (60 tahun ke atas).
           </p>
           <FormUmumPtmLansia kunjunganId={kunjungan.id} daftarPemeriksaan={daftarUmumPtmLansia} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "lansia" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Geriatri (ADL & GDS-15)</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Kemandirian aktivitas sehari-hari (ADL Katz) dan skrining depresi lansia (GDS-15).
+          </p>
+          <FormSkriningGeriatri kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningGeriatri} />
         </section>
       )}
 
