@@ -532,6 +532,83 @@ export async function batalkanKesehatanKerjaAction(id: string, kunjunganId: stri
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+export async function catatUmumPtmLansiaAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const angkaAtauNull = (nama: string) => {
+    const nilai = String(formData.get(nama) ?? "").trim();
+    if (!nilai) return null;
+    const angka = Number(nilai);
+    return Number.isFinite(angka) ? angka : null;
+  };
+
+  const { error } = await akses.supabase.from("pemeriksaan_umum_ptm_lansia").insert({
+    kunjungan_id: kunjunganId,
+    keluhan_umum: teksAtauNull(formData, "keluhan_umum"),
+    berat_badan: angkaAtauNull("berat_badan"),
+    tinggi_badan: angkaAtauNull("tinggi_badan"),
+    imt: angkaAtauNull("imt"),
+    lingkar_perut: angkaAtauNull("lingkar_perut"),
+    td_sistolik: angkaAtauNull("td_sistolik"),
+    td_diastolik: angkaAtauNull("td_diastolik"),
+    gula_darah_puasa: angkaAtauNull("gula_darah_puasa"),
+    gula_darah_sewaktu: angkaAtauNull("gula_darah_sewaktu"),
+    kolesterol_total: angkaAtauNull("kolesterol_total"),
+    asam_urat: angkaAtauNull("asam_urat"),
+    status_gizi: teksAtauNull(formData, "status_gizi"),
+    hasil_skrining: String(formData.get("hasil_skrining") ?? "normal"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan pemeriksaan: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Pemeriksaan umum & PTM lansia tersimpan.", sukses: true };
+}
+
+export async function batalkanUmumPtmLansiaAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("pemeriksaan_umum_ptm_lansia").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
+export async function catatTerapiTerpaduLansiaAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("terapi_terpadu_lansia").insert({
+    kunjungan_id: kunjunganId,
+    jenis_terapi: String(formData.get("jenis_terapi") ?? "lainnya"),
+    kondisi_yang_ditangani: teksAtauNull(formData, "kondisi_yang_ditangani"),
+    hasil_evaluasi: teksAtauNull(formData, "hasil_evaluasi"),
+    rencana_lanjutan: teksAtauNull(formData, "rencana_lanjutan"),
+    rujukan: teksAtauNull(formData, "rujukan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan terapi: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Terapi terpadu lansia tersimpan.", sukses: true };
+}
+
+export async function batalkanTerapiTerpaduLansiaAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("terapi_terpadu_lansia").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const pasienId = String(formData.get("pasien_id") ?? "");

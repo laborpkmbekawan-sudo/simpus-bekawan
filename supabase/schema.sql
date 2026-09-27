@@ -3063,3 +3063,125 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 38: KLASTER 3 -- PEMERIKSAAN UMUM & PTM LANSIA
+--
+-- Versi PTM buat kelompok lansia, terpisah dari skrining_ptm_terstruktur
+-- (khusus dewasa). Nempel ke kunjungan Klaster 3 kelompok lansia.
+-- Aman dijalankan berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.pemeriksaan_umum_ptm_lansia (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  keluhan_umum text,
+  berat_badan numeric(5, 1),
+  tinggi_badan numeric(5, 1),
+  imt numeric(4, 1),
+  lingkar_perut numeric(5, 1),
+  td_sistolik int,
+  td_diastolik int,
+  gula_darah_puasa int,
+  gula_darah_sewaktu int,
+  kolesterol_total int,
+  asam_urat numeric(4, 1),
+  status_gizi text check (status_gizi in ('kurang', 'normal', 'lebih', 'obesitas')),
+  hasil_skrining text not null default 'normal' check (hasil_skrining in ('normal', 'perlu_rujukan')),
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.pemeriksaan_umum_ptm_lansia is 'Pemeriksaan umum & PTM Klaster 3 kelompok lansia, banyak baris per kunjungan';
+
+alter table public.pemeriksaan_umum_ptm_lansia drop constraint if exists pemeriksaan_umum_ptm_lansia_check;
+alter table public.pemeriksaan_umum_ptm_lansia
+  add constraint pemeriksaan_umum_ptm_lansia_check check (
+    (berat_badan is null or berat_badan between 0.5 and 400)
+    and (tinggi_badan is null or tinggi_badan between 20 and 250)
+    and (imt is null or imt between 5 and 80)
+    and (lingkar_perut is null or lingkar_perut between 30 and 250)
+    and (td_sistolik is null or td_sistolik between 40 and 300)
+    and (td_diastolik is null or td_diastolik between 20 and 200)
+    and (gula_darah_puasa is null or gula_darah_puasa between 20 and 700)
+    and (gula_darah_sewaktu is null or gula_darah_sewaktu between 20 and 700)
+    and (kolesterol_total is null or kolesterol_total between 50 and 500)
+    and (asam_urat is null or asam_urat between 0.5 and 30)
+  );
+
+create index if not exists idx_pemeriksaan_umum_ptm_lansia_kunjungan on public.pemeriksaan_umum_ptm_lansia (kunjungan_id);
+
+alter table public.pemeriksaan_umum_ptm_lansia enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_umum_ptm_lansia" on public.pemeriksaan_umum_ptm_lansia;
+create policy "semua_pegawai_lihat_umum_ptm_lansia"
+on public.pemeriksaan_umum_ptm_lansia for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_umum_ptm_lansia" on public.pemeriksaan_umum_ptm_lansia;
+create policy "peran_klinis_kelola_umum_ptm_lansia"
+on public.pemeriksaan_umum_ptm_lansia for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_umum_ptm_lansia" on public.pemeriksaan_umum_ptm_lansia;
+create policy "peran_klinis_ubah_umum_ptm_lansia"
+on public.pemeriksaan_umum_ptm_lansia for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
+
+-- =========================================================
+-- TAHAP 39: KLASTER 3 -- TERAPI TERPADU LANSIA
+--
+-- Pelayanan terapi terpadu Puskesmas Santun Lansia: fisioterapi,
+-- terapi okupasi, terapi kognitif, senam/kelompok lansia, dsb.
+-- Nempel ke kunjungan Klaster 3 kelompok lansia. Aman dijalankan
+-- berulang kali. Jalankan SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.terapi_terpadu_lansia (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  jenis_terapi text not null check (
+    jenis_terapi in ('fisioterapi', 'terapi_okupasi', 'terapi_kognitif', 'senam_lansia', 'terapi_kelompok', 'lainnya')
+  ),
+  kondisi_yang_ditangani text,
+  hasil_evaluasi text,
+  rencana_lanjutan text,
+  rujukan text,
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.terapi_terpadu_lansia is 'Terapi terpadu Klaster 3 kelompok lansia (fisioterapi/okupasi/kognitif/senam/kelompok), banyak baris per kunjungan';
+
+create index if not exists idx_terapi_terpadu_lansia_kunjungan on public.terapi_terpadu_lansia (kunjungan_id);
+
+alter table public.terapi_terpadu_lansia enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_terapi_terpadu_lansia" on public.terapi_terpadu_lansia;
+create policy "semua_pegawai_lihat_terapi_terpadu_lansia"
+on public.terapi_terpadu_lansia for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_terapi_terpadu_lansia" on public.terapi_terpadu_lansia;
+create policy "peran_klinis_kelola_terapi_terpadu_lansia"
+on public.terapi_terpadu_lansia for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_terapi_terpadu_lansia" on public.terapi_terpadu_lansia;
+create policy "peran_klinis_ubah_terapi_terpadu_lansia"
+on public.terapi_terpadu_lansia for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
