@@ -287,6 +287,57 @@ export async function batalkanSkriningKeswaAction(skriningId: string, kunjunganI
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
+// ---------- Klaster 3: Kesehatan Reproduksi & Calon Pengantin (Caten) ----------
+export async function catatKesproCatenAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const angkaAtauNull = (nama: string) => {
+    const nilai = String(formData.get(nama) ?? "").trim();
+    if (!nilai) return null;
+    const angka = Number(nilai);
+    return Number.isFinite(angka) ? angka : null;
+  };
+
+  const { error } = await akses.supabase.from("pemeriksaan_kespro_caten").insert({
+    kunjungan_id: kunjunganId,
+    status_caten: String(formData.get("status_caten") ?? "caten"),
+    hpht: teksAtauNull(formData, "hpht"),
+    lila: angkaAtauNull("lila"),
+    imt: angkaAtauNull("imt"),
+    hb: angkaAtauNull("hb"),
+    golongan_darah: teksAtauNull(formData, "golongan_darah"),
+    rhesus: teksAtauNull(formData, "rhesus"),
+    status_tt: teksAtauNull(formData, "status_tt"),
+    hasil_hiv: String(formData.get("hasil_hiv") ?? "tidak_diperiksa"),
+    hasil_sifilis: String(formData.get("hasil_sifilis") ?? "tidak_diperiksa"),
+    hasil_hepatitis_b: String(formData.get("hasil_hepatitis_b") ?? "tidak_diperiksa"),
+    konseling_diberikan: teksAtauNull(formData, "konseling_diberikan"),
+    rekomendasi: String(formData.get("rekomendasi") ?? "layak"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan pemeriksaan kespro: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Pemeriksaan kespro tersimpan.", sukses: true };
+}
+
+export async function batalkanKesproCatenAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase
+    .from("pemeriksaan_kespro_caten")
+    .update({ dibatalkan: true })
+    .eq("id", id)
+    .eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
 export async function catatImunisasiAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const pasienId = String(formData.get("pasien_id") ?? "");

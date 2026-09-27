@@ -10,6 +10,7 @@ import FormSkrining, { type SkriningTercatat } from "./form-skrining";
 import FormImunisasi, { type ImunisasiTercatat } from "./form-imunisasi";
 import FormSkriningKlaster3, { type SkriningKlaster3Tercatat } from "./form-skrining-klaster3";
 import FormSkriningKeswa, { type SkriningKeswaTercatat } from "./form-skrining-keswa";
+import FormKesproCaten, { type KesproCatenTercatat } from "./form-kespro-caten";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -203,6 +204,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: riwayatImunisasiMentah },
     { data: daftarSkriningK3Mentah },
     { data: daftarSkriningKeswaMentah },
+    { data: daftarKesproCatenMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -282,6 +284,14 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
       : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "dewasa"
+      ? supabase
+          .from("pemeriksaan_kespro_caten")
+          .select("id, status_caten, lila, hb, hasil_hiv, hasil_sifilis, hasil_hepatitis_b, rekomendasi, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
@@ -290,6 +300,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const riwayatImunisasi = (riwayatImunisasiMentah ?? []) as unknown as ImunisasiTercatat[];
   const daftarSkriningK3 = (daftarSkriningK3Mentah ?? []) as unknown as SkriningKlaster3Tercatat[];
   const daftarSkriningKeswa = (daftarSkriningKeswaMentah ?? []) as unknown as SkriningKeswaTercatat[];
+  const daftarKesproCaten = (daftarKesproCatenMentah ?? []) as unknown as KesproCatenTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -471,6 +482,16 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
             risiko bunuh diri, terindikasi perlu tindak lanjut.
           </p>
           <FormSkriningKeswa kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningKeswa} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "dewasa" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Kesehatan Reproduksi & Calon Pengantin (Caten)</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Gizi (LILA/IMT), Hb, golongan darah, status TT, dan skrining HIV/Sifilis/Hepatitis B.
+          </p>
+          <FormKesproCaten kunjunganId={kunjungan.id} daftarPemeriksaan={daftarKesproCaten} />
         </section>
       )}
 

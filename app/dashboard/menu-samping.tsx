@@ -66,6 +66,7 @@ const MENU: Grup[] = [
       { href: "/dashboard/klaster3/dewasa", label: "Pelayanan Usia Dewasa" },
       { href: "/dashboard/klaster3/lansia", label: "Pelayanan Lansia" },
       { href: "/dashboard/klaster3/posbindu", label: "Posbindu PTM & Prolanis" },
+      { href: "/dashboard/klaster3/kohort", label: "Kohort & Register Prolanis" },
     ],
   },
   {

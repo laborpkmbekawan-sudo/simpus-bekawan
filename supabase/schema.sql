@@ -2653,3 +2653,71 @@ to authenticated
 using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
 with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
 -- =========================================================
+
+-- =========================================================
+-- TAHAP 31: KLASTER 3 -- KESEHATAN REPRODUKSI & CALON PENGANTIN (CATEN)
+--
+-- Pemeriksaan kespro pranikah/usia produktif: gizi (LILA/KEK), Hb
+-- (anemia), golongan darah, status imunisasi TT, skrining tiga
+-- penyakit (HIV/Sifilis/Hepatitis B), sampai rekomendasi. Satu tabel
+-- terpisah dari skrining_klaster3 generik biar datanya terstruktur
+-- dan bisa direkap. Banyak baris per kunjungan, sama pola dengan
+-- tabel Klaster 3 lainnya. Aman dijalankan berulang kali. Jalankan
+-- SEKALI di Supabase SQL Editor.
+-- =========================================================
+
+create table if not exists public.pemeriksaan_kespro_caten (
+  id uuid primary key default gen_random_uuid(),
+  kunjungan_id uuid not null references public.kunjungan (id) on delete cascade,
+  status_caten text not null default 'caten' check (status_caten in ('caten', 'usia_reproduksi')),
+  hpht date,
+  lila numeric(4, 1),
+  imt numeric(4, 1),
+  hb numeric(4, 1),
+  golongan_darah text check (golongan_darah in ('a', 'b', 'ab', 'o', 'belum_diketahui')),
+  rhesus text check (rhesus in ('positif', 'negatif', 'belum_diketahui')),
+  status_tt text check (status_tt in ('t1', 't2', 't3', 't4', 't5', 'belum_imunisasi')),
+  hasil_hiv text not null default 'tidak_diperiksa' check (hasil_hiv in ('non_reaktif', 'reaktif', 'tidak_diperiksa')),
+  hasil_sifilis text not null default 'tidak_diperiksa' check (hasil_sifilis in ('non_reaktif', 'reaktif', 'tidak_diperiksa')),
+  hasil_hepatitis_b text not null default 'tidak_diperiksa' check (hasil_hepatitis_b in ('non_reaktif', 'reaktif', 'tidak_diperiksa')),
+  konseling_diberikan text,
+  rekomendasi text not null default 'layak' check (rekomendasi in ('layak', 'perlu_tindak_lanjut')),
+  tindak_lanjut text,
+  dibatalkan boolean not null default false,
+  dicatat_oleh uuid references public.pegawai (id),
+  dicatat_pada timestamptz not null default now()
+);
+
+comment on table public.pemeriksaan_kespro_caten is 'Pemeriksaan kesehatan reproduksi & calon pengantin (Caten), banyak baris per kunjungan';
+
+alter table public.pemeriksaan_kespro_caten drop constraint if exists pemeriksaan_kespro_caten_check;
+alter table public.pemeriksaan_kespro_caten
+  add constraint pemeriksaan_kespro_caten_check check (
+    (lila is null or lila between 10 and 60)
+    and (imt is null or imt between 10 and 60)
+    and (hb is null or hb between 3 and 25)
+  );
+
+create index if not exists idx_pemeriksaan_kespro_caten_kunjungan on public.pemeriksaan_kespro_caten (kunjungan_id);
+
+alter table public.pemeriksaan_kespro_caten enable row level security;
+
+drop policy if exists "semua_pegawai_lihat_kespro_caten" on public.pemeriksaan_kespro_caten;
+create policy "semua_pegawai_lihat_kespro_caten"
+on public.pemeriksaan_kespro_caten for select
+to authenticated
+using (true);
+
+drop policy if exists "peran_klinis_kelola_kespro_caten" on public.pemeriksaan_kespro_caten;
+create policy "peran_klinis_kelola_kespro_caten"
+on public.pemeriksaan_kespro_caten for insert
+to authenticated
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+
+drop policy if exists "peran_klinis_ubah_kespro_caten" on public.pemeriksaan_kespro_caten;
+create policy "peran_klinis_ubah_kespro_caten"
+on public.pemeriksaan_kespro_caten for update
+to authenticated
+using (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'))
+with check (public.peran_saya() in ('admin', 'dokter', 'dokter_gigi', 'perawat', 'bidan', 'tenaga_gizi'));
+-- =========================================================
