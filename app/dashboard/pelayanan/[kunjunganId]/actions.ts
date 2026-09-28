@@ -609,66 +609,19 @@ export async function batalkanTerapiTerpaduLansiaAction(id: string, kunjunganId:
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 
-// ---------- Klaster 3: Skrining Geriatri (ADL Katz & GDS-15) ----------
-// Skor & kategori dihitung ulang di sini, bukan percaya input klien.
-// GDS-15: sebagian soal "Ya"=1 poin, sebagian lain "Tidak"=1 poin (lihat
-// GDS_SOAL_TIDAK_POSITIF -- daftar nomor soal yang arahnya kebalik).
-const ADL_ITEM_KODE = ["mandi", "berpakaian", "ke_toilet", "berpindah", "kontinensia", "makan"] as const;
-const GDS_SOAL_TIDAK_POSITIF = new Set([1, 5, 7, 11, 13]); // soal ini "Tidak" yang bernilai 1 poin, bukan "Ya"
-
-function kategoriAdl(skor: number) {
-  if (skor === 6) return "mandiri";
-  if (skor >= 4) return "ketergantungan_ringan";
-  if (skor >= 2) return "ketergantungan_sedang";
-  return "ketergantungan_berat";
-}
-
-function kategoriGds(skor: number) {
-  if (skor <= 4) return "normal";
-  if (skor <= 8) return "depresi_ringan";
-  if (skor <= 11) return "depresi_sedang";
-  return "depresi_berat";
-}
-
 export async function catatSkriningGeriatriAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const kunjunganId = String(formData.get("kunjungan_id") ?? "");
   const akses = await cekAkses(kunjunganId);
   if (!akses.ok) return { pesan: akses.pesan, sukses: false };
 
-  const adlJawaban: Record<string, boolean> = {};
-  let adlSkor = 0;
-  for (const kode of ADL_ITEM_KODE) {
-    const mandiri = formData.get(`adl_${kode}`) === "mandiri";
-    adlJawaban[kode] = mandiri;
-    if (mandiri) adlSkor += 1;
-  }
-
-  const gdsJawabanYa: number[] = [];
-  let gdsSkor = 0;
-  for (let nomor = 1; nomor <= 15; nomor++) {
-    const dijawabYa = formData.get(`gds_q${nomor}`) === "ya";
-    if (dijawabYa) gdsJawabanYa.push(nomor);
-    const poin = GDS_SOAL_TIDAK_POSITIF.has(nomor) ? !dijawabYa : dijawabYa;
-    if (poin) gdsSkor += 1;
-  }
-
-  const adlKategori = kategoriAdl(adlSkor);
-  const gdsKategori = kategoriGds(gdsSkor);
-
   const { error } = await akses.supabase.from("skrining_geriatri").insert({
     kunjungan_id: kunjunganId,
-    adl_mandi: adlJawaban.mandi,
-    adl_berpakaian: adlJawaban.berpakaian,
-    adl_ke_toilet: adlJawaban.ke_toilet,
-    adl_berpindah: adlJawaban.berpindah,
-    adl_kontinensia: adlJawaban.kontinensia,
-    adl_makan: adlJawaban.makan,
-    adl_skor: adlSkor,
-    adl_kategori: adlKategori,
-    gds_jawaban_ya: gdsJawabanYa,
-    gds_skor: gdsSkor,
-    gds_kategori: gdsKategori,
-    catatan: teksAtauNull(formData, "catatan"),
+    status_adl: String(formData.get("status_adl") ?? "mandiri"),
+    status_kognitif: String(formData.get("status_kognitif") ?? "normal"),
+    risiko_jatuh: String(formData.get("risiko_jatuh") ?? "rendah"),
+    status_gizi: String(formData.get("status_gizi") ?? "baik"),
+    status_emosional: String(formData.get("status_emosional") ?? "normal"),
+    catatan_temuan: teksAtauNull(formData, "catatan_temuan"),
     tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
     dicatat_oleh: akses.pemanggil.id,
   });
@@ -676,24 +629,45 @@ export async function catatSkriningGeriatriAction(_sebelum: Hasil | null, formDa
   if (error) return { pesan: `Gagal menyimpan skrining geriatri: ${error.message}`, sukses: false };
 
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
-  const perluPerhatian = adlKategori !== "mandiri" || gdsKategori !== "normal";
-  return {
-    pesan: perluPerhatian
-      ? "Skrining tersimpan. Ada indikasi ketergantungan ADL dan/atau depresi -- pertimbangkan tindak lanjut."
-      : "Skrining tersimpan.",
-    sukses: true,
-  };
+  return { pesan: "Skrining geriatri tersimpan.", sukses: true };
 }
 
-export async function batalkanSkriningGeriatriAction(skriningId: string, kunjunganId: string) {
+export async function batalkanSkriningGeriatriAction(id: string, kunjunganId: string) {
   const akses = await cekAkses(kunjunganId);
   if (!akses.ok) return;
 
-  await akses.supabase
-    .from("skrining_geriatri")
-    .update({ dibatalkan: true })
-    .eq("id", skriningId)
-    .eq("kunjungan_id", kunjunganId);
+  await akses.supabase.from("skrining_geriatri").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+}
+
+export async function catatSkriningInderaAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
+
+  const { error } = await akses.supabase.from("skrining_indera").insert({
+    kunjungan_id: kunjunganId,
+    hasil_penglihatan: String(formData.get("hasil_penglihatan") ?? "tidak_diperiksa"),
+    hasil_pendengaran: String(formData.get("hasil_pendengaran") ?? "tidak_diperiksa"),
+    penggunaan_alat_bantu: teksAtauNull(formData, "penggunaan_alat_bantu"),
+    catatan_temuan: teksAtauNull(formData, "catatan_temuan"),
+    rujukan: teksAtauNull(formData, "rujukan"),
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+    dicatat_oleh: akses.pemanggil.id,
+  });
+
+  if (error) return { pesan: `Gagal menyimpan skrining indera: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
+  return { pesan: "Skrining indera tersimpan.", sukses: true };
+}
+
+export async function batalkanSkriningInderaAction(id: string, kunjunganId: string) {
+  const akses = await cekAkses(kunjunganId);
+  if (!akses.ok) return;
+
+  await akses.supabase.from("skrining_indera").update({ dibatalkan: true }).eq("id", id).eq("kunjungan_id", kunjunganId);
 
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
@@ -784,67 +758,6 @@ export async function batalkanTindakanAction(tindakanId: string, kunjunganId: st
   if (!tindakan) return;
 
   await akses.supabase.rpc("batalkan_tindakan_kunjungan", { p_tindakan_id: tindakanId });
-  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
-}
-
-export async function tambahResepObatAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
-  const kunjunganId = String(formData.get("kunjungan_id") ?? "");
-  const obatId = String(formData.get("obat_id") ?? "");
-  const jumlah = Number(formData.get("jumlah") ?? 0);
-  const aturanPakai = String(formData.get("aturan_pakai") ?? "").trim();
-
-  if (!obatId || !(jumlah > 0)) return { pesan: "Pilih obat dan isi jumlah yang valid.", sukses: false };
-
-  const akses = await cekAkses(kunjunganId);
-  if (!akses.ok) return { pesan: akses.pesan, sukses: false };
-
-  // Satu resep aktif (status menunggu) per kunjungan -- item baru numpuk
-  // di situ. Kalau belum ada / resep sebelumnya udah lanjut ke farmasi,
-  // bikin header baru.
-  let resepId: string | null = null;
-  const { data: resepAktif } = await akses.supabase
-    .from("resep_obat")
-    .select("id")
-    .eq("kunjungan_id", kunjunganId)
-    .eq("status", "menunggu")
-    .maybeSingle();
-
-  if (resepAktif) {
-    resepId = resepAktif.id;
-  } else {
-    const { data: resepBaru, error: errResep } = await akses.supabase
-      .from("resep_obat")
-      .insert({ kunjungan_id: kunjunganId, dicatat_oleh: akses.pemanggil.id })
-      .select("id")
-      .single();
-    if (errResep || !resepBaru) return { pesan: `Gagal membuat resep: ${errResep?.message}`, sukses: false };
-    resepId = resepBaru.id;
-  }
-
-  const { error } = await akses.supabase.from("resep_obat_item").insert({
-    resep_obat_id: resepId,
-    obat_id: obatId,
-    jumlah,
-    aturan_pakai: aturanPakai || null,
-  });
-
-  if (error) return { pesan: `Gagal menambah item resep: ${error.message}`, sukses: false };
-
-  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
-  return { pesan: "Item resep ditambahkan.", sukses: true };
-}
-
-export async function hapusItemResepObatAction(itemId: string, kunjunganId: string) {
-  const akses = await cekAkses(kunjunganId);
-  if (!akses.ok) return;
-  await akses.supabase.from("resep_obat_item").delete().eq("id", itemId);
-  revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
-}
-
-export async function batalkanResepObatKlinisAction(resepObatId: string, kunjunganId: string) {
-  const akses = await cekAkses(kunjunganId);
-  if (!akses.ok) return;
-  await akses.supabase.rpc("batalkan_resep_obat", { p_resep_obat_id: resepObatId });
   revalidatePath(`/dashboard/pelayanan/${kunjunganId}`);
 }
 

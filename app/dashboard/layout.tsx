@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getPegawaiSaya, getKodeAksesSaya } from "@/lib/supabase/server";
+import { getPegawaiSaya } from "@/lib/supabase/server";
 import TombolKeluar from "./tombol-keluar";
 import MenuSamping from "./menu-samping";
 import { KontrolNotifikasiRujukan, ProviderNotifikasiRujukan } from "./notifikasi-rujukan";
@@ -37,7 +37,6 @@ export default async function LayoutDashboard({
   }
 
   const terimaNotifRujukan = PERAN_PENERIMA_RUJUKAN.includes(pegawai.peran) && !!pegawai.lokasi_id;
-  const kodeAkses = await getKodeAksesSaya(pegawai.id, pegawai.peran);
 
   return (
     <ProviderNotifikasiRujukan aktif={terimaNotifRujukan} lokasiId={pegawai.lokasi_id ?? null}>
@@ -55,7 +54,7 @@ export default async function LayoutDashboard({
               Akun Petugas
             </div>
           </div>
-          <MenuSamping peran={pegawai.peran} kodeAkses={kodeAkses} />
+          <MenuSamping peran={pegawai.peran} />
           <KontrolNotifikasiRujukan />
         </div>
 

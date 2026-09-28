@@ -52,27 +52,3 @@ export async function getPegawaiSaya() {
 
   return pegawai;
 }
-
-// Daftar kode klaster (lihat tabel `klaster`, mis. 'klaster_2', 'klaster_3',
-// 'lintas_pendaftaran', 'lintas_farmasi') yang pegawai ini punya akses --
-// ini yang jadi PATOKAN UTAMA buat nampilin/nutup menu & halaman, bukan cuma
-// peran. Admin selalu dianggap akses semua (gak perlu baris akses_klaster).
-export async function getKodeAksesSaya(pegawaiId: string, peran: string): Promise<string[] | "semua"> {
-  if (peran === "admin") return "semua";
-
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("akses_klaster")
-    .select("klaster:klaster_id (kode)")
-    .eq("pegawai_id", pegawaiId);
-
-  return (data ?? [])
-    .map((b) => (b.klaster as unknown as { kode: string } | null)?.kode)
-    .filter((k): k is string => !!k);
-}
-
-// Helper dipakai di page/action buat gerbang akses per modul. kodeButuh =
-// kode klaster (tabel `klaster`) yang jadi syarat, mis. "lintas_pendaftaran".
-export function punyaAkses(kodeAkses: string[] | "semua", kodeButuh: string): boolean {
-  return kodeAkses === "semua" || kodeAkses.includes(kodeButuh);
-}

@@ -19,7 +19,7 @@ import FormKesehatanKerja, { type KesehatanKerjaTercatat } from "./form-kesehata
 import FormUmumPtmLansia, { type UmumPtmLansiaTercatat } from "./form-umum-ptm-lansia";
 import FormTerapiTerpaduLansia, { type TerapiTerpaduLansiaTercatat } from "./form-terapi-terpadu-lansia";
 import FormSkriningGeriatri, { type SkriningGeriatriTercatat } from "./form-skrining-geriatri";
-import FormResepObat from "./form-resep-obat";
+import FormSkriningIndera, { type SkriningInderaTercatat } from "./form-skrining-indera";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -206,8 +206,6 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarTarifMentah },
     { data: daftarResepMentah },
     { data: tindakanMentah },
-    { data: daftarObatMentah },
-    { data: daftarResepObatMentah },
     { data: riwayatMentah },
     { data: pelayananIbuData },
     { data: pelayananAnakData },
@@ -224,6 +222,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarUmumPtmLansiaMentah },
     { data: daftarTerapiTerpaduLansiaMentah },
     { data: daftarSkriningGeriatriMentah },
+    { data: daftarSkriningInderaMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -244,14 +243,6 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
       )
       .eq("kunjungan_id", kunjungan.id)
       .eq("dibatalkan", false)
-      .order("dicatat_pada", { ascending: false }),
-    supabase.from("obat").select("id, nama_obat, satuan").eq("aktif", true).order("nama_obat"),
-    supabase
-      .from("resep_obat")
-      .select(
-        "id, status, dicatat_pada, resep_obat_item (id, jumlah, aturan_pakai, obat:obat_id (nama_obat, satuan))"
-      )
-      .eq("kunjungan_id", kunjungan.id)
       .order("dicatat_pada", { ascending: false }),
     supabase
       .from("kunjungan")
@@ -379,7 +370,15 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     klaster3 && kelompokUsiaK3 === "lansia"
       ? supabase
           .from("skrining_geriatri")
-          .select("id, adl_skor, adl_kategori, gds_skor, gds_kategori, tindak_lanjut, dicatat_pada")
+          .select("id, status_adl, status_kognitif, risiko_jatuh, status_gizi, status_emosional, tindak_lanjut, dicatat_pada")
+          .eq("kunjungan_id", kunjungan.id)
+          .eq("dibatalkan", false)
+          .order("dicatat_pada", { ascending: false })
+      : Promise.resolve({ data: null }),
+    klaster3 && kelompokUsiaK3 === "lansia"
+      ? supabase
+          .from("skrining_indera")
+          .select("id, hasil_penglihatan, hasil_pendengaran, penggunaan_alat_bantu, tindak_lanjut, dicatat_pada")
           .eq("kunjungan_id", kunjungan.id)
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
@@ -401,6 +400,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarUmumPtmLansia = (daftarUmumPtmLansiaMentah ?? []) as unknown as UmumPtmLansiaTercatat[];
   const daftarTerapiTerpaduLansia = (daftarTerapiTerpaduLansiaMentah ?? []) as unknown as TerapiTerpaduLansiaTercatat[];
   const daftarSkriningGeriatri = (daftarSkriningGeriatriMentah ?? []) as unknown as SkriningGeriatriTercatat[];
+  const daftarSkriningIndera = (daftarSkriningInderaMentah ?? []) as unknown as SkriningInderaTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -423,28 +423,6 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
       namaBhp: i.bhp?.nama_bhp ?? "—",
       jumlah: Number(i.jumlah_terpakai),
       satuan: i.bhp?.satuan ?? "",
-    })),
-  }));
-
-  const daftarObatAktif = ((daftarObatMentah ?? []) as unknown as { id: string; nama_obat: string; satuan: string }[]).map(
-    (o) => ({ id: o.id, namaObat: o.nama_obat, satuan: o.satuan })
-  );
-
-  const daftarResepObat = ((daftarResepObatMentah ?? []) as unknown as {
-    id: string;
-    status: string;
-    dicatat_pada: string;
-    resep_obat_item: { id: string; jumlah: number; aturan_pakai: string | null; obat: { nama_obat: string; satuan: string } | null }[] | null;
-  }[]).map((r) => ({
-    id: r.id,
-    status: r.status,
-    dicatatPada: r.dicatat_pada,
-    items: (r.resep_obat_item ?? []).map((i) => ({
-      id: i.id,
-      namaObat: i.obat?.nama_obat ?? "—",
-      satuan: i.obat?.satuan ?? "",
-      jumlah: Number(i.jumlah),
-      aturanPakai: i.aturan_pakai,
     })),
   }));
 
@@ -679,16 +657,6 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
 
       {klaster3 && kelompokUsiaK3 === "lansia" && (
         <section className="rounded-card border border-sand-100 bg-white p-5">
-          <h2 className="text-base font-bold text-ink">Skrining Geriatri (ADL & GDS-15)</h2>
-          <p className="mb-4 mt-0.5 text-xs text-ink/50">
-            Kemandirian aktivitas sehari-hari (ADL Katz) dan skrining depresi lansia (GDS-15).
-          </p>
-          <FormSkriningGeriatri kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningGeriatri} />
-        </section>
-      )}
-
-      {klaster3 && kelompokUsiaK3 === "lansia" && (
-        <section className="rounded-card border border-sand-100 bg-white p-5">
           <h2 className="text-base font-bold text-ink">Terapi Terpadu Lansia</h2>
           <p className="mb-4 mt-0.5 text-xs text-ink/50">
             Fisioterapi, terapi okupasi, terapi kognitif, senam, atau terapi kelompok buat pasien lansia.
@@ -697,10 +665,25 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
         </section>
       )}
 
-      <section className="rounded-card border border-sand-100 bg-white p-5">
-        <h2 className="mb-4 text-base font-bold text-ink">Resep Obat</h2>
-        <FormResepObat kunjunganId={kunjungan.id} daftarObat={daftarObatAktif} daftarResep={daftarResepObat} />
-      </section>
+      {klaster3 && kelompokUsiaK3 === "lansia" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Geriatri</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Penilaian kemandirian (ADL), kognitif, risiko jatuh, status gizi, dan status emosional lansia.
+          </p>
+          <FormSkriningGeriatri kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningGeriatri} />
+        </section>
+      )}
+
+      {klaster3 && kelompokUsiaK3 === "lansia" && (
+        <section className="rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-base font-bold text-ink">Skrining Indera</h2>
+          <p className="mb-4 mt-0.5 text-xs text-ink/50">
+            Skrining fungsi penglihatan dan pendengaran lansia, termasuk pemakaian alat bantu.
+          </p>
+          <FormSkriningIndera kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningIndera} />
+        </section>
+      )}
 
       <section className="rounded-card border border-sand-100 bg-white p-5">
         <h2 className="mb-4 text-base font-bold text-ink">Catatan Klinis (SOAP)</h2>

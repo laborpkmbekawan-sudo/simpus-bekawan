@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
+import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // Kolom nadi/td_sistolik/td_diastolik/frekuensi_napas di database tipe int.
@@ -25,10 +25,6 @@ export async function daftarKunjunganAction(
   const pemanggil = await getPegawaiSaya();
   if (!pemanggil) {
     return { pesan: "Sesi login gak ditemukan, coba masuk ulang.", sukses: false };
-  }
-  const kodeAkses = await getKodeAksesSaya(pemanggil.id, pemanggil.peran);
-  if (!punyaAkses(kodeAkses, "lintas_pendaftaran")) {
-    return { pesan: "Akunmu gak punya akses ke Pendaftaran.", sukses: false };
   }
 
   const pasienId = String(formData.get("pasien_id") ?? "");

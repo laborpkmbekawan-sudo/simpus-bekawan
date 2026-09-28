@@ -28,29 +28,6 @@ type KeswaBaris = {
   kunjungan: { tanggal: string; pasien: { nama_lengkap: string } | null } | null;
 };
 
-type GeriatriBaris = {
-  adl_skor: number;
-  adl_kategori: string;
-  gds_skor: number;
-  gds_kategori: string;
-  tindak_lanjut: string | null;
-  kunjungan: { tanggal: string; pasien: { nama_lengkap: string } | null } | null;
-};
-
-const LABEL_ADL_KATEGORI: Record<string, string> = {
-  mandiri: "Mandiri",
-  ketergantungan_ringan: "Ketergantungan Ringan",
-  ketergantungan_sedang: "Ketergantungan Sedang",
-  ketergantungan_berat: "Ketergantungan Berat",
-};
-
-const LABEL_GDS_KATEGORI: Record<string, string> = {
-  normal: "Normal",
-  depresi_ringan: "Depresi Ringan",
-  depresi_sedang: "Depresi Sedang",
-  depresi_berat: "Depresi Berat",
-};
-
 const LABEL_PENYAKIT: Record<string, string> = {
   hipertensi: "Hipertensi",
   diabetes_melitus: "Diabetes Melitus",
@@ -117,7 +94,6 @@ export default async function LaporanKlaster3({
     { data: daftarProlanisMentah },
     { data: daftarSkriningK3Mentah },
     { data: daftarKeswaMentah },
-    { data: daftarGeriatriMentah },
   ] = await Promise.all([
     supabase
       .from("kegiatan_posbindu_ptm")
@@ -143,28 +119,15 @@ export default async function LaporanKlaster3({
           .select("skor, kategori, tindak_lanjut, kunjungan:kunjungan_id (tanggal, pasien:pasien_id (nama_lengkap))")
           .in("kunjungan_id", idKunjungan)
           .eq("dibatalkan", false),
-    idKunjungan.length === 0
-      ? Promise.resolve({ data: [] })
-      : supabase
-          .from("skrining_geriatri")
-          .select(
-            "adl_skor, adl_kategori, gds_skor, gds_kategori, tindak_lanjut, kunjungan:kunjungan_id (tanggal, pasien:pasien_id (nama_lengkap))"
-          )
-          .in("kunjungan_id", idKunjungan)
-          .eq("dibatalkan", false),
   ]);
 
   const daftarPosbindu = (daftarPosbinduMentah ?? []) as unknown as (PosbinduBaris & { hasil_skrining: string })[];
   const daftarProlanis = (daftarProlanisMentah ?? []) as unknown as (ProlanisBaris & { kepatuhan_obat: string })[];
   const daftarKeswa = (daftarKeswaMentah ?? []) as unknown as (KeswaBaris & { kategori: string })[];
-  const daftarGeriatri = (daftarGeriatriMentah ?? []) as unknown as GeriatriBaris[];
 
   const posbinduPerluRujukan = daftarPosbindu.filter((p) => p.hasil_skrining === "perlu_rujukan");
   const prolanisTidakPatuh = daftarProlanis.filter((p) => p.kepatuhan_obat === "tidak_patuh");
   const keswaTerindikasi = daftarKeswa.filter((k) => k.kategori === "terindikasi_masalah_emosional");
-  const geriatriPerluPerhatian = daftarGeriatri.filter(
-    (g) => g.adl_kategori !== "mandiri" || g.gds_kategori !== "normal"
-  );
 
   const perJenisSkrining = new Map<string, number>();
   for (const s of daftarSkriningK3Mentah ?? []) {
@@ -185,7 +148,6 @@ export default async function LaporanKlaster3({
     { label: "Posbindu Perlu Rujukan", nilai: posbinduPerluRujukan.length },
     { label: "Prolanis Tidak Patuh Obat", nilai: prolanisTidakPatuh.length },
     { label: "Skrining Jiwa Terindikasi", nilai: keswaTerindikasi.length },
-    { label: "Geriatri Perlu Perhatian", nilai: geriatriPerluPerhatian.length },
   ];
 
   const periodeTeks = dari === sampai ? tanggalPanjang(dari) : `${tanggalPanjang(dari)} s.d. ${tanggalPanjang(sampai)}`;
@@ -201,7 +163,7 @@ export default async function LaporanKlaster3({
       <div className="flex flex-wrap items-start justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-extrabold text-ink">Laporan Usia Produktif & Lansia (Klaster 3)</h1>
-          <p className="mt-1.5 text-sm text-ink/60">Rekap Posbindu PTM, kontrol Prolanis, skrining, skrining jiwa, dan geriatri.</p>
+          <p className="mt-1.5 text-sm text-ink/60">Rekap Posbindu PTM, kontrol Prolanis, skrining, dan skrining jiwa.</p>
         </div>
         <TombolCetak />
       </div>
@@ -338,39 +300,6 @@ export default async function LaporanKlaster3({
             ))}
             {keswaTerindikasi.length === 0 && (
               <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-ink/45">Tidak ada yang terindikasi periode ini.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="overflow-hidden rounded-card border border-sand-100 bg-white">
-        <p className="border-b border-sand-100 px-4 py-3 text-sm font-bold text-ink">Register Geriatri Perlu Perhatian (ADL/GDS-15)</p>
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-sand-100 text-xs uppercase tracking-wide text-ink/45">
-              <th className="px-4 py-2.5 font-medium">Tanggal</th>
-              <th className="px-4 py-2.5 font-medium">Nama</th>
-              <th className="px-4 py-2.5 font-medium">ADL</th>
-              <th className="px-4 py-2.5 font-medium">GDS-15</th>
-              <th className="px-4 py-2.5 font-medium">Tindak Lanjut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {geriatriPerluPerhatian.map((g, idx) => (
-              <tr key={idx} className="border-b border-sand-100/70 last:border-0">
-                <td className="px-4 py-2.5 text-ink/70">{g.kunjungan?.tanggal ?? "—"}</td>
-                <td className="px-4 py-2.5 text-ink">{g.kunjungan?.pasien?.nama_lengkap ?? "—"}</td>
-                <td className="px-4 py-2.5 text-ink/70">
-                  {g.adl_skor}/6 · {LABEL_ADL_KATEGORI[g.adl_kategori] ?? g.adl_kategori}
-                </td>
-                <td className="px-4 py-2.5 text-ink/70">
-                  {g.gds_skor}/15 · {LABEL_GDS_KATEGORI[g.gds_kategori] ?? g.gds_kategori}
-                </td>
-                <td className="px-4 py-2.5 text-ink/70">{g.tindak_lanjut ?? "—"}</td>
-              </tr>
-            ))}
-            {geriatriPerluPerhatian.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-ink/45">Tidak ada yang perlu perhatian periode ini.</td></tr>
             )}
           </tbody>
         </table>

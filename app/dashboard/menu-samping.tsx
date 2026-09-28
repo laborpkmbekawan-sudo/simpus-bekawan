@@ -5,24 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useNotifikasiRujukan } from "./notifikasi-rujukan";
 
-// kodeAksesButuh: kode klaster (tabel `klaster`, mis. "lintas_pendaftaran")
-// yang jadi syarat -- ini PATOKAN UTAMA. Kalau pegawai gak punya akses ke
-// kode itu (dicek lewat tabel akses_klaster), menu gak muncul, titik --
-// gak peduli peran-nya apa. peranBoleh cuma filter tambahan/pelengkap.
-type Item = {
-  href: string;
-  label: string;
-  peranBoleh?: string[];
-  kodeAksesButuh?: string;
-  lencanaRujukan?: boolean;
-};
-type Grup = {
-  label: string;
-  href?: string;
-  peranBoleh?: string[];
-  kodeAksesButuh?: string;
-  anak?: Item[];
-};
+type Item = { href: string; label: string; peranBoleh?: string[]; lencanaRujukan?: boolean };
+type Grup = { label: string; href?: string; peranBoleh?: string[]; anak?: Item[] };
 
 // Peran yang menangani alur pasien langsung (pendaftaran, antrian, rujukan,
 // rekam medis). Peran non-klinis (manajemen/klaster 1, bendahara BOK,
@@ -47,7 +31,6 @@ const MENU: Grup[] = [
   {
     label: "Pendaftaran Pasien",
     peranBoleh: PERAN_LAYANAN_PASIEN,
-    kodeAksesButuh: "lintas_pendaftaran",
     anak: [
       { href: "/dashboard/pasien", label: "Daftar Pasien" },
       { href: "/dashboard/kunjungan-hari-ini", label: "Kunjungan Hari Ini" },
@@ -64,77 +47,33 @@ const MENU: Grup[] = [
   { label: "Rekam Medis", href: "/dashboard/rekam-medis", peranBoleh: PERAN_LAYANAN_PASIEN },
   {
     label: "Klaster 2 (Ibu, Anak & Remaja)",
-    // Grup dibuka utk bendahara_bok juga (cuma butuh anak Laporan-nya),
-    // makanya tiap anak non-laporan dikunci ulang ke peran klinis asli.
-    peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan"],
+    peranBoleh: ["admin", "kapus", "perawat", "bidan"],
     anak: [
-      {
-        href: "/dashboard/klaster2",
-        label: "Dashboard",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan"],
-        kodeAksesButuh: "klaster_2",
-      },
-      {
-        href: "/dashboard/klaster2/kohort",
-        label: "Kohort & Register",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan"],
-        kodeAksesButuh: "klaster_2",
-      },
-      {
-        href: "/dashboard/laporan/klaster2",
-        label: "Laporan KIA & Anak",
-        peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan"],
-      },
+      { href: "/dashboard/klaster2", label: "Dashboard" },
+      { href: "/dashboard/klaster2/kohort", label: "Kohort & Register" },
     ],
   },
   {
+    label: "Laporan KIA & Anak",
+    href: "/dashboard/laporan/klaster2",
+    peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan"],
+  },
+  {
     label: "Klaster 3 (Usia Produktif & Lansia)",
-    // Sama seperti Klaster 2: grup dibuka utk bendahara_bok, anak non-laporan
-    // dikunci lagi ke peran klinis asli.
-    peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan", "tenaga_gizi"],
+    peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
     anak: [
-      {
-        href: "/dashboard/klaster3",
-        label: "Dashboard",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
-        kodeAksesButuh: "klaster_3",
-      },
-      {
-        href: "/dashboard/klaster3/dewasa",
-        label: "Pelayanan Usia Dewasa",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
-        kodeAksesButuh: "klaster_3",
-      },
-      {
-        href: "/dashboard/klaster3/lansia",
-        label: "Pelayanan Lansia",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
-        kodeAksesButuh: "klaster_3",
-      },
-      {
-        href: "/dashboard/klaster3/posbindu",
-        label: "Posbindu PTM & Prolanis",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
-        kodeAksesButuh: "klaster_3",
-      },
-      {
-        href: "/dashboard/klaster3/jadwal",
-        label: "Jadwal Posbindu & Lansia",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
-        kodeAksesButuh: "klaster_3",
-      },
-      {
-        href: "/dashboard/klaster3/kohort",
-        label: "Kohort & Register Prolanis",
-        peranBoleh: ["admin", "kapus", "perawat", "bidan", "tenaga_gizi"],
-        kodeAksesButuh: "klaster_3",
-      },
-      {
-        href: "/dashboard/laporan/klaster3",
-        label: "Laporan Klaster 3",
-        peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan", "tenaga_gizi"],
-      },
+      { href: "/dashboard/klaster3", label: "Dashboard" },
+      { href: "/dashboard/klaster3/dewasa", label: "Pelayanan Usia Dewasa" },
+      { href: "/dashboard/klaster3/lansia", label: "Pelayanan Lansia" },
+      { href: "/dashboard/klaster3/posbindu", label: "Posbindu PTM & Prolanis" },
+      { href: "/dashboard/klaster3/jadwal", label: "Jadwal Posbindu & Lansia" },
+      { href: "/dashboard/klaster3/kohort", label: "Kohort & Register Prolanis" },
     ],
+  },
+  {
+    label: "Laporan Klaster 3",
+    href: "/dashboard/laporan/klaster3",
+    peranBoleh: ["admin", "kapus", "bendahara_bok", "perawat", "bidan", "tenaga_gizi"],
   },
   { label: "Mutu & Keselamatan Pasien", href: "/dashboard/mutu" },
   {
@@ -145,16 +84,7 @@ const MENU: Grup[] = [
       { href: "/dashboard/kasir/tarif", label: "Tarif & Tindakan", peranBoleh: ["admin"] },
     ],
   },
-  {
-    label: "Farmasi",
-    peranBoleh: ["admin", "farmasi"],
-    kodeAksesButuh: "lintas_farmasi",
-    anak: [
-      { href: "/dashboard/farmasi", label: "Data Obat & BHP" },
-      { href: "/dashboard/farmasi/mutasi", label: "Mutasi & Penerimaan" },
-      { href: "/dashboard/farmasi/resep", label: "Verifikasi & Penyerahan Resep" },
-    ],
-  },
+  { label: "Farmasi (BHP)", href: "/dashboard/farmasi", peranBoleh: ["admin", "farmasi"] },
   {
     label: "Laporan Internal",
     peranBoleh: ["admin", "kapus", "bendahara_bok", "loket_rm_kasir"],
@@ -217,28 +147,15 @@ function Lencana({ jumlah }: { jumlah: number }) {
   );
 }
 
-export default function MenuSamping({
-  peran,
-  kodeAkses,
-}: {
-  peran: string;
-  // "semua" buat admin (bebas semua). Selain itu: daftar kode klaster (tabel
-  // `klaster`) yang pegawai ini beneran punya baris akses_klaster-nya --
-  // INI PATOKAN UTAMA nampil/nutup menu, bukan cuma peran.
-  kodeAkses: string[] | "semua";
-}) {
+export default function MenuSamping({ peran }: { peran: string }) {
   const pathname = usePathname();
   const { jumlah: jumlahMasuk, jumlahPembaruan } = useNotifikasiRujukan();
   // Rujukan masuk yang belum diterima + pembaruan rujukan keluar yang belum dilihat.
   const jumlahRujukan = jumlahMasuk + jumlahPembaruan;
 
   const boleh = (p?: string[]) => !p || p.includes(peran);
-  const adaAkses = (kode?: string) => !kode || kodeAkses === "semua" || kodeAkses.includes(kode);
-  const lolos = (x: { peranBoleh?: string[]; kodeAksesButuh?: string }) =>
-    boleh(x.peranBoleh) && adaAkses(x.kodeAksesButuh);
-
-  const grupTampil = MENU.filter((g) => lolos(g))
-    .map((g) => ({ ...g, anak: g.anak?.filter((a) => lolos(a)) }))
+  const grupTampil = MENU.filter((g) => boleh(g.peranBoleh))
+    .map((g) => ({ ...g, anak: g.anak?.filter((a) => boleh(a.peranBoleh)) }))
     .filter((g) => g.href || (g.anak && g.anak.length > 0));
 
   const semuaHref = grupTampil.flatMap((g) => (g.href ? [g.href] : g.anak!.map((a) => a.href)));
