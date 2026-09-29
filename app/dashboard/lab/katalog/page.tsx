@@ -2,6 +2,8 @@ import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import { KATEGORI_LAB, PERAN_KLINIS_LAB, PERAN_LAB, teksRujukan, type ParameterLab } from "@/lib/lab";
 import FormTambahPemeriksaan from "./form-tambah-pemeriksaan";
 import TogglePemeriksaan from "./toggle-pemeriksaan";
+import PilihTarif from "./pilih-tarif";
+import type { OpsiTarif } from "./form-tambah-pemeriksaan";
 
 type Pemeriksaan = {
   id: string;
@@ -10,6 +12,8 @@ type Pemeriksaan = {
   kategori: string;
   jenis_sampel: string | null;
   aktif: boolean;
+  tarif_layanan_id: string | null;
+  tarif: { nama_layanan: string; harga: number } | null;
   parameter: ParameterLab[];
 };
 
@@ -33,16 +37,20 @@ export default async function HalamanKatalogLab() {
 
   const kelola = PERAN_LAB.includes(pemanggil.peran);
   const supabase = createClient();
-  const { data, error } = await supabase
+  const [{ data, error }, { data: tarifMentah }] = await Promise.all([
+    supabase
     .from("lab_pemeriksaan")
-    .select("id, kode, nama, kategori, jenis_sampel, aktif, parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, urutan, aktif)")
-    .order("nama");
+    .select("id, kode, nama, kategori, jenis_sampel, aktif, tarif_layanan_id, tarif:tarif_layanan_id (nama_layanan, harga), parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, urutan, aktif)")
+    .order("nama"),
+    supabase.from("tarif_layanan").select("id, nama_layanan, harga").eq("aktif", true).order("nama_layanan"),
+  ]);
+  const daftarTarif = (tarifMentah ?? []) as OpsiTarif[];
 
   if (error) {
     return (
       <div className="rounded-sm border border-clay-600/20 bg-clay-600/5 px-5 py-4 text-sm text-clay-700">
         Gagal memuat katalog: {error.message}
-        {error.message.includes("lab_pemeriksaan") && " — jalankan migrasi_tahap_43.sql di Supabase dulu."}
+        {error.message.includes("lab_pemeriksaan") && " — jalankan migrasi_tahap_43.sql lalu migrasi_tahap_44.sql di Supabase dulu."}
       </div>
     );
   }
@@ -65,7 +73,7 @@ export default async function HalamanKatalogLab() {
         </div>
       </div>
 
-      {kelola && <FormTambahPemeriksaan />}
+      {kelola && <FormTambahPemeriksaan daftarTarif={daftarTarif} />}
 
       {kategori.map((k) => (
         <section key={k} className="space-y-3">
@@ -85,7 +93,8 @@ export default async function HalamanKatalogLab() {
                           {!p.aktif && <span className="ml-2 rounded-sm bg-ink/5 px-2 py-0.5 text-[11px] font-semibold text-ink/50">Nonaktif</span>}
                         </p>
                         <p className="text-xs text-ink/50">
-                          {parameter.length} parameter{p.jenis_sampel ? ` · Sampel: ${p.jenis_sampel}` : ""}
+                          {parameter.length} parameter{p.jenis_sampel ? ` · Sampel: ${p.jenis_sampel}` : ""} ·{" "}
+                          {p.tarif ? `Tarif: Rp ${Math.round(Number(p.tarif.harga)).toLocaleString("id-ID")}` : "Tidak ditagih"}
                         </p>
                       </div>
                       {kelola && (
@@ -94,6 +103,12 @@ export default async function HalamanKatalogLab() {
                         </div>
                       )}
                     </summary>
+                    {kelola && (
+                      <div className="mt-4 rounded-sm border border-sand-100 bg-sand-50 p-3">
+                        <p className="mb-2 text-xs font-bold text-ink/70">Tarif kasir (ditagihkan otomatis saat hasil divalidasi)</p>
+                        <PilihTarif id={p.id} tarifId={p.tarif_layanan_id} daftarTarif={daftarTarif} />
+                      </div>
+                    )}
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full text-left text-sm">
                         <thead>

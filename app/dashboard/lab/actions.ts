@@ -46,6 +46,7 @@ export async function simpanPemeriksaanAction(_sebelum: Hasil | null, formData: 
   const kode = String(formData.get("kode") ?? "").trim().toUpperCase();
   const kategori = String(formData.get("kategori") ?? "Lainnya").trim() || "Lainnya";
   const jenisSampel = String(formData.get("jenis_sampel") ?? "").trim();
+  const tarifId = String(formData.get("tarif_layanan_id") ?? "").trim();
 
   let parameterMentah: ParameterMentah[] = [];
   try {
@@ -69,7 +70,13 @@ export async function simpanPemeriksaanAction(_sebelum: Hasil | null, formData: 
 
   const { data: baru, error } = await supabase
     .from("lab_pemeriksaan")
-    .insert({ nama, kode: kode || null, kategori, jenis_sampel: jenisSampel || null })
+    .insert({
+      nama,
+      kode: kode || null,
+      kategori,
+      jenis_sampel: jenisSampel || null,
+      tarif_layanan_id: tarifId || null,
+    })
     .select("id")
     .single();
 
@@ -108,6 +115,27 @@ export async function simpanPemeriksaanAction(_sebelum: Hasil | null, formData: 
 
   segarkan();
   return { pesan: `Pemeriksaan "${nama}" ditambahkan ke katalog.`, sukses: true };
+}
+
+// FITUR 3 -- tautkan / lepas tarif kasir pada pemeriksaan katalog.
+export async function ubahTarifPemeriksaanAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh ubah tarif pemeriksaan.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const tarifId = String(formData.get("tarif_layanan_id") ?? "").trim();
+  if (!id) return { pesan: "Pemeriksaan gak ditemukan.", sukses: false };
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("lab_pemeriksaan")
+    .update({ tarif_layanan_id: tarifId || null })
+    .eq("id", id);
+  if (error) return { pesan: `Gagal simpan tarif: ${error.message}`, sukses: false };
+
+  segarkan();
+  return { pesan: tarifId ? "Tarif tersimpan." : "Tarif dilepas, pemeriksaan ini tidak ditagih.", sukses: true };
 }
 
 export async function ubahAktifPemeriksaanAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
@@ -426,9 +454,31 @@ export async function simpanHasilLabAction(_sebelum: Hasil | null, formData: For
   if (errSelesai) return { pesan: `Hasil tersimpan tapi validasi gagal: ${errSelesai.message}`, sukses: false };
   if (!selesai) return { pesan: "Status permintaan berubah (mungkin dibatalkan). Muat ulang halaman.", sukses: false };
 
+  // FITUR 3 -- tagihkan pemeriksaan bertarif ke kasir (idempotent di database).
+  // Kegagalan tagih tidak membatalkan validasi; Lab diberi tahu supaya bisa
+  // mengecek tarif di katalog.
+  const { data: jumlahTagih, error: errTagih } = await supabase.rpc("lab_tagihkan_permintaan", {
+    p_permintaan_id: permintaanId,
+  });
   segarkan();
   revalidatePath(`/dashboard/pelayanan/${p.kunjungan_id}`);
-  return { pesan: "Hasil divalidasi dan terkirim ke klaster.", sukses: true };
+  revalidatePath("/dashboard/kasir");
+  revalidatePath("/dashboard/lab/laporan");
+
+  if (errTagih) {
+    return {
+      pesan: `Hasil divalidasi dan terkirim ke klaster, tapi penagihan ke kasir gagal: ${errTagih.message}. Pastikan migrasi_tahap_44.sql sudah dijalankan.`,
+      sukses: true,
+    };
+  }
+  const n = Number(jumlahTagih ?? 0);
+  return {
+    pesan:
+      n > 0
+        ? `Hasil divalidasi dan terkirim ke klaster. ${n} pemeriksaan masuk tagihan kasir.`
+        : "Hasil divalidasi dan terkirim ke klaster. Tidak ada pemeriksaan bertarif yang ditagihkan.",
+    sukses: true,
+  };
 }
 
 // Peminta membuka hasil -> notifikasi hasil hilang. Lewat fungsi database

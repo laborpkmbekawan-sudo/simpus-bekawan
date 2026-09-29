@@ -49,7 +49,9 @@ function TombolSimpan() {
   );
 }
 
-export default function FormTambahPemeriksaan() {
+export type OpsiTarif = { id: string; nama_layanan: string; harga: number };
+
+export default function FormTambahPemeriksaan({ daftarTarif = [] }: { daftarTarif?: OpsiTarif[] }) {
   const [state, aksi] = useFormState(simpanPemeriksaanAction, null);
   const [terbuka, setTerbuka] = useState(false);
   const [parameter, setParameter] = useState<BarisParameter[]>([parameterKosong()]);
@@ -107,6 +109,17 @@ export default function FormTambahPemeriksaan() {
         <label className="space-y-1.5 sm:col-span-2">
           <span className={labelCls}>Jenis sampel</span>
           <input name="jenis_sampel" className={inputCls} placeholder="mis. Serum, Urine sewaktu, Darah EDTA" />
+        </label>
+        <label className="space-y-1.5 sm:col-span-2">
+          <span className={labelCls}>Tarif kasir (opsional)</span>
+          <select name="tarif_layanan_id" className={inputCls} defaultValue="">
+            <option value="">Tidak ditagih</option>
+            {daftarTarif.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nama_layanan} — Rp {Math.round(Number(t.harga)).toLocaleString("id-ID")}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 
