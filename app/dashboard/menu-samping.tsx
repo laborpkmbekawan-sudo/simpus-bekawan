@@ -152,7 +152,9 @@ const MENU: Grup[] = [
     anak: [
       { href: "/dashboard/farmasi/resep", label: "Verifikasi & Penyerahan Resep" },
       { href: "/dashboard/farmasi/resep/entri", label: "Entri Resep Manual" },
+      { href: "/dashboard/farmasi/riwayat", label: "Riwayat Obat Pasien" },
       { href: "/dashboard/farmasi/obat", label: "Master Data Obat & Penerimaan" },
+      { href: "/dashboard/farmasi/kartu-stok", label: "Kartu Stok Digital" },
       { href: "/dashboard/farmasi/bhp", label: "Bahan Habis Pakai (BHP)" },
     ],
   },
