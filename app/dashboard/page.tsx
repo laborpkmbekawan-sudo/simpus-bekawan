@@ -91,7 +91,7 @@ export default async function BerandaDashboard() {
     });
   }
   if (stokMenipis.length > 0) {
-    peringatan.push({ teks: `${stokMenipis.length} BHP stoknya menipis`, href: "/dashboard/farmasi" });
+    peringatan.push({ teks: `${stokMenipis.length} BHP stoknya menipis`, href: "/dashboard/farmasi/bhp" });
   }
 
   return (

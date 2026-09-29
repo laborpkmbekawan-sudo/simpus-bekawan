@@ -19,7 +19,6 @@ import FormKesehatanKerja, { type KesehatanKerjaTercatat } from "./form-kesehata
 import FormUmumPtmLansia, { type UmumPtmLansiaTercatat } from "./form-umum-ptm-lansia";
 import FormTerapiTerpaduLansia, { type TerapiTerpaduLansiaTercatat } from "./form-terapi-terpadu-lansia";
 import FormSkriningGeriatri, { type SkriningGeriatriTercatat } from "./form-skrining-geriatri";
-import FormSkriningIndera, { type SkriningInderaTercatat } from "./form-skrining-indera";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -222,7 +221,6 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarUmumPtmLansiaMentah },
     { data: daftarTerapiTerpaduLansiaMentah },
     { data: daftarSkriningGeriatriMentah },
-    { data: daftarSkriningInderaMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -370,15 +368,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     klaster3 && kelompokUsiaK3 === "lansia"
       ? supabase
           .from("skrining_geriatri")
-          .select("id, status_adl, status_kognitif, risiko_jatuh, status_gizi, status_emosional, tindak_lanjut, dicatat_pada")
-          .eq("kunjungan_id", kunjungan.id)
-          .eq("dibatalkan", false)
-          .order("dicatat_pada", { ascending: false })
-      : Promise.resolve({ data: null }),
-    klaster3 && kelompokUsiaK3 === "lansia"
-      ? supabase
-          .from("skrining_indera")
-          .select("id, hasil_penglihatan, hasil_pendengaran, penggunaan_alat_bantu, tindak_lanjut, dicatat_pada")
+          .select("id, adl_skor, adl_kategori, gds_skor, gds_kategori, tindak_lanjut, dicatat_pada")
           .eq("kunjungan_id", kunjungan.id)
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
@@ -400,7 +390,6 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarUmumPtmLansia = (daftarUmumPtmLansiaMentah ?? []) as unknown as UmumPtmLansiaTercatat[];
   const daftarTerapiTerpaduLansia = (daftarTerapiTerpaduLansiaMentah ?? []) as unknown as TerapiTerpaduLansiaTercatat[];
   const daftarSkriningGeriatri = (daftarSkriningGeriatriMentah ?? []) as unknown as SkriningGeriatriTercatat[];
-  const daftarSkriningIndera = (daftarSkriningInderaMentah ?? []) as unknown as SkriningInderaTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -657,19 +646,9 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
 
       {klaster3 && kelompokUsiaK3 === "lansia" && (
         <section className="rounded-card border border-sand-100 bg-white p-5">
-          <h2 className="text-base font-bold text-ink">Terapi Terpadu Lansia</h2>
+          <h2 className="text-base font-bold text-ink">Skrining Geriatri (ADL & GDS-15)</h2>
           <p className="mb-4 mt-0.5 text-xs text-ink/50">
-            Fisioterapi, terapi okupasi, terapi kognitif, senam, atau terapi kelompok buat pasien lansia.
-          </p>
-          <FormTerapiTerpaduLansia kunjunganId={kunjungan.id} daftarTerapi={daftarTerapiTerpaduLansia} />
-        </section>
-      )}
-
-      {klaster3 && kelompokUsiaK3 === "lansia" && (
-        <section className="rounded-card border border-sand-100 bg-white p-5">
-          <h2 className="text-base font-bold text-ink">Skrining Geriatri</h2>
-          <p className="mb-4 mt-0.5 text-xs text-ink/50">
-            Penilaian kemandirian (ADL), kognitif, risiko jatuh, status gizi, dan status emosional lansia.
+            Kemandirian aktivitas sehari-hari (ADL Katz) dan skrining depresi lansia (GDS-15).
           </p>
           <FormSkriningGeriatri kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningGeriatri} />
         </section>
@@ -677,11 +656,11 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
 
       {klaster3 && kelompokUsiaK3 === "lansia" && (
         <section className="rounded-card border border-sand-100 bg-white p-5">
-          <h2 className="text-base font-bold text-ink">Skrining Indera</h2>
+          <h2 className="text-base font-bold text-ink">Terapi Terpadu Lansia</h2>
           <p className="mb-4 mt-0.5 text-xs text-ink/50">
-            Skrining fungsi penglihatan dan pendengaran lansia, termasuk pemakaian alat bantu.
+            Fisioterapi, terapi okupasi, terapi kognitif, senam, atau terapi kelompok buat pasien lansia.
           </p>
-          <FormSkriningIndera kunjunganId={kunjungan.id} daftarSkrining={daftarSkriningIndera} />
+          <FormTerapiTerpaduLansia kunjunganId={kunjungan.id} daftarTerapi={daftarTerapiTerpaduLansia} />
         </section>
       )}
 

@@ -44,7 +44,7 @@ export async function tambahBhpAction(
     });
   }
 
-  revalidatePath("/dashboard/farmasi");
+  revalidatePath("/dashboard/farmasi/bhp");
   return { pesan: "" };
 }
 
@@ -89,6 +89,6 @@ export async function tambahStokMasukAction(
     dibuat_oleh: pemanggil.id,
   });
 
-  revalidatePath("/dashboard/farmasi");
+  revalidatePath("/dashboard/farmasi/bhp");
   return { pesan: "" };
 }
