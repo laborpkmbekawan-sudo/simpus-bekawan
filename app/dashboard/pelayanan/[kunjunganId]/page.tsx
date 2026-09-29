@@ -19,6 +19,7 @@ import FormKesehatanKerja, { type KesehatanKerjaTercatat } from "./form-kesehata
 import FormUmumPtmLansia, { type UmumPtmLansiaTercatat } from "./form-umum-ptm-lansia";
 import FormTerapiTerpaduLansia, { type TerapiTerpaduLansiaTercatat } from "./form-terapi-terpadu-lansia";
 import FormSkriningGeriatri, { type SkriningGeriatriTercatat } from "./form-skrining-geriatri";
+import FormPermintaanLab, { type KatalogLabRingkas, type PermintaanLabTercatat } from "./form-permintaan-lab";
 
 const PERAN_KLINIS = ["admin", "dokter", "dokter_gigi", "perawat", "bidan"];
 
@@ -221,6 +222,8 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     { data: daftarUmumPtmLansiaMentah },
     { data: daftarTerapiTerpaduLansiaMentah },
     { data: daftarSkriningGeriatriMentah },
+    { data: katalogLabMentah, error: errKatalogLab },
+    { data: permintaanLabMentah },
   ] = await Promise.all([
     supabase
       .from("catatan_klinis")
@@ -373,6 +376,18 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           .eq("dibatalkan", false)
           .order("dicatat_pada", { ascending: false })
       : Promise.resolve({ data: null }),
+    supabase
+      .from("lab_pemeriksaan")
+      .select("id, kode, nama, kategori, jenis_sampel")
+      .eq("aktif", true)
+      .order("nama"),
+    supabase
+      .from("lab_permintaan")
+      .select(
+        "id, no_lab, status, prioritas, diminta_pada, diminta_oleh, hasil_dilihat_pada, items:lab_permintaan_item (id, dibatalkan, pemeriksaan:pemeriksaan_id (nama), hasil:lab_hasil (id, nama_parameter, satuan, rujukan_teks, nilai, flag, catatan, parameter:parameter_id (urutan)))"
+      )
+      .eq("kunjungan_id", kunjungan.id)
+      .order("diminta_pada", { ascending: false }),
   ]);
 
   const dataIbu = (pelayananIbuData ?? null) as unknown as DataPelayananIbu | null;
@@ -390,6 +405,9 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
   const daftarUmumPtmLansia = (daftarUmumPtmLansiaMentah ?? []) as unknown as UmumPtmLansiaTercatat[];
   const daftarTerapiTerpaduLansia = (daftarTerapiTerpaduLansiaMentah ?? []) as unknown as TerapiTerpaduLansiaTercatat[];
   const daftarSkriningGeriatri = (daftarSkriningGeriatriMentah ?? []) as unknown as SkriningGeriatriTercatat[];
+
+  const katalogLab = (katalogLabMentah ?? []) as unknown as KatalogLabRingkas[];
+  const permintaanLab = (permintaanLabMentah ?? []) as unknown as PermintaanLabTercatat[];
 
   const resepPerTarif: Record<string, { bhp_id: string; nama_bhp: string; satuan: string; jumlah_default: number }[]> = {};
   for (const r of daftarResepMentah ?? []) {
@@ -663,6 +681,22 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
           <FormTerapiTerpaduLansia kunjunganId={kunjungan.id} daftarTerapi={daftarTerapiTerpaduLansia} />
         </section>
       )}
+
+      <section className="rounded-card border border-sand-100 bg-white p-5">
+        <h2 className="text-base font-bold text-ink">Permintaan Laboratorium</h2>
+        <p className="mb-4 mt-0.5 text-xs text-ink/50">
+          Minta pemeriksaan ke Lab dari sini. Status terlacak sampai hasil keluar, dan hasilnya muncul di bawah begitu
+          divalidasi Lab.
+        </p>
+        <FormPermintaanLab
+          kunjunganId={kunjungan.id}
+          pegawaiId={pemanggil.id}
+          katalog={katalogLab}
+          permintaan={permintaanLab}
+          diagnosisAwal={catatan?.diagnosis ?? ""}
+          galat={errKatalogLab?.message ?? null}
+        />
+      </section>
 
       <section className="rounded-card border border-sand-100 bg-white p-5">
         <h2 className="mb-4 text-base font-bold text-ink">Catatan Klinis (SOAP)</h2>

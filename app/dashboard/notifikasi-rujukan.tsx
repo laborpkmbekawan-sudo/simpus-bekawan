@@ -102,12 +102,12 @@ function ambilAudio(): AudioContext | null {
 
 // Browser memblokir suara sebelum ada interaksi. Interaksi pertama (klik/tombol)
 // "membuka kunci" audio supaya bunyi notifikasi bisa jalan setelahnya.
-function bukaKunciAudio() {
+export function bukaKunciAudio() {
   const ctx = ambilAudio();
   if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
 }
 
-function bunyi() {
+export function bunyi() {
   const ctx = ambilAudio();
   if (!ctx) return;
   try {

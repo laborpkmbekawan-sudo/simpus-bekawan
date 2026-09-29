@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { getPegawaiSaya, getKodeAksesSaya } from "@/lib/supabase/server";
+import { getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 import TombolKeluar from "./tombol-keluar";
 import MenuSamping from "./menu-samping";
 import { KontrolNotifikasiRujukan, ProviderNotifikasiRujukan } from "./notifikasi-rujukan";
+import { ProviderNotifikasiLab, type ModeNotifikasiLab } from "./notifikasi-lab";
 
 // Peran yang menerima notifikasi rujukan masuk (di lokasi tujuannya).
 const PERAN_PENERIMA_RUJUKAN = ["dokter", "dokter_gigi", "perawat", "bidan"];
@@ -39,8 +40,18 @@ export default async function LayoutDashboard({
   const terimaNotifRujukan = PERAN_PENERIMA_RUJUKAN.includes(pegawai.peran) && !!pegawai.lokasi_id;
   const kodeAkses = await getKodeAksesSaya(pegawai.id, pegawai.peran);
 
+  // Notifikasi Lab: petugas Lab dapat permintaan masuk, peminta (klinis) dapat
+  // hasil selesai. Petugas Lab cuma diaktifkan kalau punya akses Lintas Lab.
+  const modeLab: ModeNotifikasiLab =
+    ["admin", "laboratorium"].includes(pegawai.peran) && punyaAkses(kodeAkses, "lintas_lab")
+      ? "lab"
+      : PERAN_PENERIMA_RUJUKAN.includes(pegawai.peran)
+        ? "klinis"
+        : null;
+
   return (
     <ProviderNotifikasiRujukan aktif={terimaNotifRujukan} lokasiId={pegawai.lokasi_id ?? null}>
+    <ProviderNotifikasiLab mode={modeLab} pegawaiId={pegawai.id}>
     <div className="grid min-h-screen grid-cols-[260px_1fr] bg-sand-50 print:block">
       <aside
         className="sticky top-0 flex h-screen flex-col justify-between overflow-y-auto px-4 py-6 text-white print:hidden"
@@ -76,6 +87,7 @@ export default async function LayoutDashboard({
 
       <main className="min-w-0 px-10 py-10 print:p-0">{children}</main>
     </div>
+    </ProviderNotifikasiLab>
     </ProviderNotifikasiRujukan>
   );
 }

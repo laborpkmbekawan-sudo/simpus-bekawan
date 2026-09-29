@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useNotifikasiRujukan } from "./notifikasi-rujukan";
+import { useNotifikasiLab } from "./notifikasi-lab";
 
 // kodeAksesButuh: kode klaster (tabel `klaster`, mis. "lintas_pendaftaran")
 // yang jadi syarat -- ini PATOKAN UTAMA. Kalau pegawai gak punya akses ke
@@ -15,6 +16,9 @@ type Item = {
   peranBoleh?: string[];
   kodeAksesButuh?: string;
   lencanaRujukan?: boolean;
+  // Lencana notifikasi Lab: "masuk" = permintaan menunggu (petugas Lab),
+  // "hasil" = hasil selesai belum dibuka (peminta).
+  lencanaLab?: "masuk" | "hasil";
 };
 type Grup = {
   label: string;
@@ -62,6 +66,21 @@ const MENU: Grup[] = [
     ],
   },
   { label: "Rekam Medis", href: "/dashboard/rekam-medis", peranBoleh: PERAN_LAYANAN_PASIEN },
+  {
+    label: "Laboratorium",
+    peranBoleh: ["admin", "kapus", "laboratorium", "dokter", "dokter_gigi", "perawat", "bidan"],
+    anak: [
+      {
+        href: "/dashboard/lab",
+        label: "Antrean Permintaan",
+        peranBoleh: ["admin", "laboratorium"],
+        kodeAksesButuh: "lintas_lab",
+        lencanaLab: "masuk",
+      },
+      { href: "/dashboard/lab/hasil", label: "Hasil Laboratorium", lencanaLab: "hasil" },
+      { href: "/dashboard/lab/katalog", label: "Katalog Pemeriksaan" },
+    ],
+  },
   {
     label: "Klaster 2 (Ibu, Anak & Remaja)",
     // Grup dibuka utk bendahara_bok juga (cuma butuh anak Laporan-nya),
@@ -212,11 +231,11 @@ function cocok(pathname: string, href: string, semuaHref: string[]) {
 const CLS_ITEM =
   "block rounded-xl border-l-[3px] px-3.5 py-3 text-sm font-medium transition-colors hover:bg-white/10 hover:text-white";
 
-function Lencana({ jumlah }: { jumlah: number }) {
+function Lencana({ jumlah, label = "notifikasi rujukan" }: { jumlah: number; label?: string }) {
   return (
     <span
       className="ml-2 min-w-[20px] rounded-full bg-clay-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white"
-      aria-label={`${jumlah} notifikasi rujukan`}
+      aria-label={`${jumlah} ${label}`}
     >
       {jumlah > 99 ? "99+" : jumlah}
     </span>
@@ -237,6 +256,10 @@ export default function MenuSamping({
   const { jumlah: jumlahMasuk, jumlahPembaruan } = useNotifikasiRujukan();
   // Rujukan masuk yang belum diterima + pembaruan rujukan keluar yang belum dilihat.
   const jumlahRujukan = jumlahMasuk + jumlahPembaruan;
+  const { mode: modeLab, jumlah: jumlahLab } = useNotifikasiLab();
+  // Jumlah lencana Lab untuk satu item menu (0 = tidak tampil).
+  const lencanaLabItem = (a: Item) =>
+    (a.lencanaLab === "masuk" && modeLab === "lab") || (a.lencanaLab === "hasil" && modeLab === "klinis") ? jumlahLab : 0;
 
   const boleh = (p?: string[]) => !p || p.includes(peran);
   const adaAkses = (kode?: string) => !kode || kodeAkses === "semua" || kodeAkses.includes(kode);
@@ -289,6 +312,9 @@ export default function MenuSamping({
                 {!terbuka && jumlahRujukan > 0 && anak.some((a) => a.lencanaRujukan) && (
                   <Lencana jumlah={jumlahRujukan} />
                 )}
+                {!terbuka && anak.some((a) => lencanaLabItem(a) > 0) && (
+                  <Lencana jumlah={Math.max(...anak.map(lencanaLabItem))} label="notifikasi laboratorium" />
+                )}
                 <span className={`ml-2 text-xs transition-transform ${terbuka ? "rotate-180" : ""}`} aria-hidden>
                   ⌄
                 </span>
@@ -308,6 +334,7 @@ export default function MenuSamping({
                     >
                       <span>{a.label}</span>
                       {a.lencanaRujukan && jumlahRujukan > 0 && <Lencana jumlah={jumlahRujukan} />}
+                      {lencanaLabItem(a) > 0 && <Lencana jumlah={lencanaLabItem(a)} label="notifikasi laboratorium" />}
                     </Link>
                   );
                 })}
