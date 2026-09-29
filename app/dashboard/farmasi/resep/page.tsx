@@ -14,6 +14,24 @@ type ItemResep = {
   obat: { nama_obat: string; satuan: string; stok_saat_ini: number } | null;
 };
 
+type KomposisiRacikan = {
+  id: string;
+  obat_id: string;
+  jumlah_total: number;
+  dibatalkan: boolean;
+  obat: { nama_obat: string; satuan: string; stok_saat_ini: number } | null;
+};
+
+type Racikan = {
+  id: string;
+  nama_racikan: string;
+  jumlah_bungkus: number;
+  waktu_pemberian: string | null;
+  durasi_hari: number | null;
+  catatan: string | null;
+  komposisi: KomposisiRacikan[];
+};
+
 type Resep = {
   id: string;
   status: string;
@@ -26,6 +44,7 @@ type Resep = {
     klaster: { nama: string; kode_antrian: string | null } | null;
   } | null;
   items: ItemResep[];
+  racikan: Racikan[];
 };
 
 const SELECT_RESEP = `
@@ -38,6 +57,13 @@ const SELECT_RESEP = `
   items:resep_obat_item (
     id, dosis, frekuensi_per_hari, waktu_pemberian, durasi_hari, jumlah, catatan, dibatalkan,
     obat:obat_id (nama_obat, satuan, stok_saat_ini)
+  ),
+  racikan:resep_racikan (
+    id, nama_racikan, jumlah_bungkus, waktu_pemberian, durasi_hari, catatan,
+    komposisi:resep_racikan_komposisi (
+      id, obat_id, jumlah_total, dibatalkan,
+      obat:obat_id (nama_obat, satuan, stok_saat_ini)
+    )
   )
 `;
 
@@ -109,6 +135,43 @@ function KartuResep({ r, bisaAksi }: { r: Resep; bisaAksi: boolean }) {
           </tbody>
         </table>
       </div>
+
+      {r.racikan.length > 0 && (
+        <div className="mt-4 space-y-3 border-t border-sand-100 pt-4">
+          {r.racikan.map((rac) => (
+            <div key={rac.id} className="rounded-sm border border-teal-700/20 bg-teal-700/5 p-3.5">
+              <p className="text-sm font-bold text-ink">
+                {rac.nama_racikan} <span className="font-normal text-ink/50">· {rac.jumlah_bungkus} bungkus</span>
+              </p>
+              <p className="text-xs text-ink/50">
+                {[rac.waktu_pemberian, rac.durasi_hari ? `selama ${rac.durasi_hari} hari` : null].filter(Boolean).join(", ") || "—"}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {rac.komposisi
+                  .filter((k) => !k.dibatalkan)
+                  .map((k) => {
+                    const kurang = k.obat ? Number(k.obat.stok_saat_ini) < Number(k.jumlah_total) : true;
+                    return (
+                      <li key={k.id} className="flex items-center justify-between text-sm">
+                        <span className="text-ink/70">{k.obat?.nama_obat ?? "—"}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium text-ink">
+                            {k.jumlah_total} {k.obat?.satuan}
+                          </span>
+                          {bisaAksi && (
+                            <span className={`text-xs ${kurang ? "font-medium text-clay-700" : "text-ink/40"}`}>
+                              {kurang ? "Kurang" : `Sisa ${k.obat?.stok_saat_ini}`}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

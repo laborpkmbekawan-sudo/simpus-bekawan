@@ -21,6 +21,34 @@ type BarisObat = {
   catatan: string;
 };
 
+type BarisKomposisi = { idBaris: string; obat_id: string; jumlah_total: string };
+
+type BarisRacikan = {
+  idBaris: string;
+  nama_racikan: string;
+  jumlah_bungkus: string;
+  waktu_pemberian: string;
+  durasi_hari: string;
+  catatan: string;
+  komposisi: BarisKomposisi[];
+};
+
+function komposisiKosong(): BarisKomposisi {
+  return { idBaris: crypto.randomUUID(), obat_id: "", jumlah_total: "" };
+}
+
+function racikanKosong(): BarisRacikan {
+  return {
+    idBaris: crypto.randomUUID(),
+    nama_racikan: "",
+    jumlah_bungkus: "",
+    waktu_pemberian: "",
+    durasi_hari: "",
+    catatan: "",
+    komposisi: [komposisiKosong()],
+  };
+}
+
 function barisKosong(): BarisObat {
   return {
     idBaris: crypto.randomUUID(),
@@ -57,12 +85,14 @@ export default function FormEntriResep({
 }) {
   const [state, formAction] = useFormState(buatResepManualAction, null);
   const [baris, setBaris] = useState<BarisObat[]>([barisKosong()]);
+  const [racikan, setRacikan] = useState<BarisRacikan[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (state?.sukses) {
       formRef.current?.reset();
       setBaris([barisKosong()]);
+      setRacikan([]);
     }
   }, [state]);
 
@@ -72,6 +102,34 @@ export default function FormEntriResep({
 
   function hapusBaris(idBaris: string) {
     setBaris((sebelum) => (sebelum.length > 1 ? sebelum.filter((b) => b.idBaris !== idBaris) : sebelum));
+  }
+
+  function ubahRacikan(idBaris: string, perubahan: Partial<BarisRacikan>) {
+    setRacikan((sebelum) => sebelum.map((r) => (r.idBaris === idBaris ? { ...r, ...perubahan } : r)));
+  }
+
+  function hapusRacikan(idBaris: string) {
+    setRacikan((sebelum) => sebelum.filter((r) => r.idBaris !== idBaris));
+  }
+
+  function ubahKomposisi(idRacikan: string, idBarisKomposisi: string, perubahan: Partial<BarisKomposisi>) {
+    setRacikan((sebelum) =>
+      sebelum.map((r) =>
+        r.idBaris !== idRacikan
+          ? r
+          : { ...r, komposisi: r.komposisi.map((k) => (k.idBaris === idBarisKomposisi ? { ...k, ...perubahan } : k)) }
+      )
+    );
+  }
+
+  function hapusKomposisi(idRacikan: string, idBarisKomposisi: string) {
+    setRacikan((sebelum) =>
+      sebelum.map((r) =>
+        r.idBaris !== idRacikan || r.komposisi.length <= 1
+          ? r
+          : { ...r, komposisi: r.komposisi.filter((k) => k.idBaris !== idBarisKomposisi) }
+      )
+    );
   }
 
   // Jumlah otomatis kesaranin dari frekuensi x durasi (biar farmasi gak
@@ -91,6 +149,7 @@ export default function FormEntriResep({
   return (
     <form ref={formRef} action={formAction} className="space-y-5">
       <input type="hidden" name="items" value={JSON.stringify(baris)} />
+      <input type="hidden" name="racikan" value={JSON.stringify(racikan)} />
 
       <div className="rounded-card border border-sand-100 bg-white p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -220,6 +279,118 @@ export default function FormEntriResep({
           className="text-sm font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
         >
           + Tambah obat
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-ink/40">
+          Racikan (puyer/campuran, opsional)
+        </p>
+        {racikan.map((r, i) => (
+          <div key={r.idBaris} className="rounded-card border border-teal-700/20 bg-teal-700/5 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Racikan {i + 1}</p>
+              <button type="button" onClick={() => hapusRacikan(r.idBaris)} className="text-xs text-clay-700 underline">
+                Hapus racikan
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="col-span-2 space-y-1">
+                <label className={labelCls}>Nama racikan</label>
+                <input
+                  value={r.nama_racikan}
+                  onChange={(e) => ubahRacikan(r.idBaris, { nama_racikan: e.target.value })}
+                  placeholder="mis. Puyer Batuk Pilek"
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelCls}>Jumlah bungkus</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={r.jumlah_bungkus}
+                  onChange={(e) => ubahRacikan(r.idBaris, { jumlah_bungkus: e.target.value })}
+                  placeholder="mis. 10"
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelCls}>Waktu pemberian</label>
+                <select
+                  value={r.waktu_pemberian}
+                  onChange={(e) => ubahRacikan(r.idBaris, { waktu_pemberian: e.target.value })}
+                  className={inputCls}
+                >
+                  <option value="">—</option>
+                  <option value="Sebelum makan">Sebelum makan</option>
+                  <option value="Sesudah makan">Sesudah makan</option>
+                  <option value="Kapan saja">Kapan saja</option>
+                </select>
+              </div>
+              <div className="col-span-2 sm:col-span-4 space-y-1">
+                <label className={labelCls}>Durasi (hari)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={r.durasi_hari}
+                  onChange={(e) => ubahRacikan(r.idBaris, { durasi_hari: e.target.value })}
+                  placeholder="mis. 5"
+                  className={`${inputCls} max-w-[140px]`}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-2 border-t border-teal-700/15 pt-3">
+              <p className={labelCls}>Komposisi obat dasar (jumlah total buat semua bungkus)</p>
+              {r.komposisi.map((k) => (
+                <div key={k.idBaris} className="flex items-center gap-2">
+                  <select
+                    value={k.obat_id}
+                    onChange={(e) => ubahKomposisi(r.idBaris, k.idBaris, { obat_id: e.target.value })}
+                    className={`${inputCls} flex-1`}
+                  >
+                    <option value="">Pilih obat...</option>
+                    {daftarObat.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.nama_obat} (sisa {o.stok_saat_ini} {o.satuan})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={k.jumlah_total}
+                    onChange={(e) => ubahKomposisi(r.idBaris, k.idBaris, { jumlah_total: e.target.value })}
+                    placeholder="Jumlah"
+                    className={`${inputCls} w-28`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => hapusKomposisi(r.idBaris, k.idBaris)}
+                    className="text-xs text-clay-700 underline"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => ubahRacikan(r.idBaris, { komposisi: [...r.komposisi, komposisiKosong()] })}
+                className="text-xs font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+              >
+                + Tambah komposisi
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setRacikan((sebelum) => [...sebelum, racikanKosong()])}
+          className="text-sm font-medium text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+        >
+          + Tambah racikan
         </button>
       </div>
 
