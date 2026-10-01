@@ -15,6 +15,8 @@ type Item = {
   label: string;
   peranBoleh?: string[];
   kodeAksesButuh?: string;
+  // Hanya tampil untuk pegawai yang lokasi kerjanya bertipe ini (tabel lokasi).
+  lokasiTipeButuh?: "pustu" | "induk";
   lencanaRujukan?: boolean;
   // Lencana notifikasi Lab: "masuk" = permintaan menunggu (petugas Lab),
   // "hasil" = hasil selesai belum dibuka (peminta).
@@ -25,6 +27,7 @@ type Grup = {
   href?: string;
   peranBoleh?: string[];
   kodeAksesButuh?: string;
+  lokasiTipeButuh?: "pustu" | "induk";
   anak?: Item[];
 };
 
@@ -71,6 +74,11 @@ const MENU: Grup[] = [
     peranBoleh: ["admin", "kapus", "laboratorium", "dokter", "dokter_gigi", "perawat", "bidan"],
     anak: [
       {
+        href: "/dashboard/lab/rekap",
+        label: "Dashboard Rekap",
+        peranBoleh: ["admin", "kapus", "laboratorium"],
+      },
+      {
         href: "/dashboard/lab",
         label: "Antrean Permintaan",
         peranBoleh: ["admin", "laboratorium"],
@@ -80,9 +88,34 @@ const MENU: Grup[] = [
       { href: "/dashboard/lab/hasil", label: "Hasil Laboratorium", lencanaLab: "hasil" },
       { href: "/dashboard/lab/riwayat", label: "Riwayat & Tren Pasien" },
       { href: "/dashboard/lab/rujukan", label: "Rujukan Lab Keluar", peranBoleh: ["admin", "kapus", "laboratorium"] },
+      {
+        href: "/dashboard/lab/pustu",
+        label: "Laporan Pustu Masuk",
+        peranBoleh: ["admin", "kapus", "laboratorium"],
+      },
+      {
+        href: "/dashboard/lab/pustu",
+        label: "Lab Pustu",
+        peranBoleh: ["dokter", "dokter_gigi", "perawat", "bidan"],
+        lokasiTipeButuh: "pustu",
+      },
+      {
+        href: "/dashboard/lab/pustu/input",
+        label: "Input Hasil Pustu",
+        peranBoleh: ["dokter", "dokter_gigi", "perawat", "bidan"],
+        lokasiTipeButuh: "pustu",
+      },
+      {
+        href: "/dashboard/lab/pustu/stok",
+        label: "Stok BHP & Reagen Pustu",
+        peranBoleh: ["dokter", "dokter_gigi", "perawat", "bidan"],
+        lokasiTipeButuh: "pustu",
+      },
       { href: "/dashboard/lab/qc", label: "Kontrol Mutu (QC)", peranBoleh: ["admin", "kapus", "laboratorium"] },
       { href: "/dashboard/lab/alat", label: "Alat & Kalibrasi", peranBoleh: ["admin", "kapus", "laboratorium"] },
       { href: "/dashboard/lab/reagen", label: "Lot Reagen & Kadaluarsa", peranBoleh: ["admin", "kapus", "laboratorium"] },
+      { href: "/dashboard/lab/pme", label: "Mutu Eksternal (PME)", peranBoleh: ["admin", "kapus", "laboratorium"] },
+      { href: "/dashboard/lab/ketidaksesuaian", label: "Ketidaksesuaian & CAPA", peranBoleh: ["admin", "kapus", "laboratorium"] },
       { href: "/dashboard/lab/katalog", label: "Katalog Pemeriksaan" },
       {
         href: "/dashboard/lab/laporan",
@@ -255,8 +288,11 @@ function Lencana({ jumlah, label = "notifikasi rujukan" }: { jumlah: number; lab
 export default function MenuSamping({
   peran,
   kodeAkses,
+  lokasiTipe = null,
 }: {
   peran: string;
+  // Tipe lokasi kerja pegawai ("induk" / "pustu"); null kalau belum diatur.
+  lokasiTipe?: string | null;
   // "semua" buat admin (bebas semua). Selain itu: daftar kode klaster (tabel
   // `klaster`) yang pegawai ini beneran punya baris akses_klaster-nya --
   // INI PATOKAN UTAMA nampil/nutup menu, bukan cuma peran.
@@ -273,8 +309,8 @@ export default function MenuSamping({
 
   const boleh = (p?: string[]) => !p || p.includes(peran);
   const adaAkses = (kode?: string) => !kode || kodeAkses === "semua" || kodeAkses.includes(kode);
-  const lolos = (x: { peranBoleh?: string[]; kodeAksesButuh?: string }) =>
-    boleh(x.peranBoleh) && adaAkses(x.kodeAksesButuh);
+  const lolos = (x: { peranBoleh?: string[]; kodeAksesButuh?: string; lokasiTipeButuh?: string }) =>
+    boleh(x.peranBoleh) && adaAkses(x.kodeAksesButuh) && (!x.lokasiTipeButuh || x.lokasiTipeButuh === lokasiTipe);
 
   const grupTampil = MENU.filter((g) => lolos(g))
     .map((g) => ({ ...g, anak: g.anak?.filter((a) => lolos(a)) }))

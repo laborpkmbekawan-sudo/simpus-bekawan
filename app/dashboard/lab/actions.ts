@@ -1147,3 +1147,293 @@ export async function hapusLotAction(_sebelum: Hasil | null, formData: FormData)
   segarkanLot();
   return { pesan: "Lot dihapus.", sukses: true };
 }
+
+// ---------------------------------------------------------------------------
+// FITUR 13 -- Pemantapan Mutu Eksternal (PME)
+// ---------------------------------------------------------------------------
+
+function segarkanPme() {
+  revalidatePath("/dashboard/lab/pme");
+  revalidatePath("/dashboard/lab");
+}
+
+function teksAtauNull(formData: FormData, k: string): string | null {
+  return String(formData.get(k) ?? "").trim() || null;
+}
+
+export async function tambahPmeAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat siklus PME.", sukses: false };
+  }
+  const penyelenggara = String(formData.get("penyelenggara") ?? "").trim();
+  const siklus = String(formData.get("siklus") ?? "").trim();
+  const namaParameter = String(formData.get("nama_parameter") ?? "").trim();
+  const jenis = String(formData.get("jenis") ?? "kuantitatif");
+  const terima = String(formData.get("tanggal_terima") ?? "").trim() || hariIniWib();
+  const batas = tanggalOpsional(formData.get("batas_lapor"));
+  if (!penyelenggara) return { pesan: "Penyelenggara PME wajib diisi.", sukses: false };
+  if (!siklus) return { pesan: "Siklus wajib diisi (mis. Siklus 1 2026).", sukses: false };
+  if (!namaParameter) return { pesan: "Parameter yang diuji wajib diisi.", sukses: false };
+  if (!["kuantitatif", "kualitatif"].includes(jenis)) return { pesan: "Jenis tidak valid.", sukses: false };
+  if (!tanggalValid(terima)) return { pesan: "Tanggal terima tidak valid.", sukses: false };
+  if (batas === "salah") return { pesan: "Batas lapor tidak valid.", sukses: false };
+  if (batas && batas < terima) return { pesan: "Batas lapor tidak boleh sebelum tanggal terima sampel.", sukses: false };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_pme").insert({
+    penyelenggara,
+    program: teksAtauNull(formData, "program"),
+    siklus,
+    nama_parameter: namaParameter,
+    satuan: jenis === "kuantitatif" ? teksAtauNull(formData, "satuan") : null,
+    jenis,
+    tanggal_terima: terima,
+    batas_lapor: batas,
+    catatan: teksAtauNull(formData, "catatan"),
+    dicatat_oleh: pemanggil.id,
+    dicatat_oleh_nama: pemanggil.nama_lengkap,
+  });
+  if (error) {
+    return {
+      pesan: `Gagal simpan: ${error.message}${error.message.includes("lab_pme") ? ". Pastikan migrasi_tahap_49.sql sudah dijalankan." : ""}`,
+      sukses: false,
+    };
+  }
+  segarkanPme();
+  return { pesan: `Siklus ${siklus} (${namaParameter}) dicatat.`, sukses: true };
+}
+
+export async function laporPmeAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat hasil PME.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { pesan: "Siklus PME gak ditemukan.", sukses: false };
+  const tanggal = String(formData.get("tanggal_dilaporkan") ?? "").trim() || hariIniWib();
+  if (!tanggalValid(tanggal)) return { pesan: "Tanggal lapor tidak valid.", sukses: false };
+  if (tanggal > hariIniWib()) return { pesan: "Tanggal lapor tidak boleh di masa depan.", sukses: false };
+
+  const supabase = createClient();
+  const { data: pme, error: errBaca } = await supabase.from("lab_pme").select("jenis, status, tanggal_terima").eq("id", id).single();
+  if (errBaca || !pme) return { pesan: "Siklus PME gak ditemukan.", sukses: false };
+  if (pme.status === "dievaluasi") return { pesan: "Siklus ini sudah dievaluasi, hasil lab tidak bisa diubah.", sukses: false };
+  if (tanggal < pme.tanggal_terima) return { pesan: "Tanggal lapor tidak boleh sebelum sampel diterima.", sukses: false };
+
+  const ubah: Record<string, string | number | null> = { tanggal_dilaporkan: tanggal };
+  if (pme.jenis === "kuantitatif") {
+    const nilai = angkaAtauNull(String(formData.get("nilai_lab") ?? ""));
+    if (nilai == null) return { pesan: "Nilai hasil lab harus berupa angka.", sukses: false };
+    ubah.nilai_lab = nilai;
+  } else {
+    const hasil = String(formData.get("hasil_lab") ?? "").trim();
+    if (!hasil) return { pesan: "Hasil lab wajib diisi (mis. Reaktif / Non-reaktif).", sukses: false };
+    ubah.hasil_lab = hasil;
+  }
+
+  const { error } = await supabase.from("lab_pme").update(ubah).eq("id", id);
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+  segarkanPme();
+  return { pesan: "Hasil lab tercatat. Tunggu hasil evaluasi dari penyelenggara.", sukses: true };
+}
+
+export async function evaluasiPmeAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat evaluasi PME.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { pesan: "Siklus PME gak ditemukan.", sukses: false };
+
+  const supabase = createClient();
+  const { data: pme, error: errBaca } = await supabase
+    .from("lab_pme")
+    .select("jenis, status, nilai_lab, hasil_lab")
+    .eq("id", id)
+    .single();
+  if (errBaca || !pme) return { pesan: "Siklus PME gak ditemukan.", sukses: false };
+  if (pme.status === "diterima") return { pesan: "Catat hasil lab dulu sebelum memasukkan evaluasi penyelenggara.", sukses: false };
+
+  const ubah: Record<string, string | number | null> = {
+    tindak_lanjut: teksAtauNull(formData, "tindak_lanjut"),
+  };
+  const skorTeks = String(formData.get("skor") ?? "").trim();
+  if (skorTeks) {
+    const skor = angkaAtauNull(skorTeks);
+    if (skor == null) return { pesan: "Skor harus berupa angka.", sukses: false };
+    ubah.skor = skor;
+  } else {
+    ubah.skor = null;
+  }
+
+  let tidakMemuaskan = false;
+  let perluTindak = false;
+  if (pme.jenis === "kuantitatif") {
+    const target = angkaAtauNull(String(formData.get("nilai_target") ?? ""));
+    const sd = angkaAtauNull(String(formData.get("sd_peserta") ?? ""));
+    if (target == null) return { pesan: "Nilai target harus berupa angka.", sukses: false };
+    if (sd == null || sd <= 0) return { pesan: "SD peserta harus berupa angka lebih dari 0.", sukses: false };
+    ubah.nilai_target = target;
+    ubah.sd_peserta = sd;
+    const sdi = Math.abs((Number(pme.nilai_lab) - target) / sd);
+    tidakMemuaskan = sdi > 3;
+    perluTindak = sdi > 2;
+  } else {
+    const benar = String(formData.get("hasil_benar") ?? "").trim();
+    if (!benar) return { pesan: "Hasil yang benar (kunci jawaban) wajib diisi.", sukses: false };
+    ubah.hasil_benar = benar;
+    tidakMemuaskan = (pme.hasil_lab ?? "").trim().toLowerCase() !== benar.toLowerCase();
+    perluTindak = tidakMemuaskan;
+  }
+  if (perluTindak && !ubah.tindak_lanjut) {
+    return {
+      pesan: tidakMemuaskan
+        ? "Hasil tidak memuaskan. Isi tindak lanjut (investigasi penyebab dan tindakan perbaikan)."
+        : "Hasil peringatan (SDI 2-3). Isi tindak lanjut / catatan pemantauan.",
+      sukses: false,
+    };
+  }
+
+  const { error } = await supabase.from("lab_pme").update(ubah).eq("id", id);
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+  segarkanPme();
+  return tidakMemuaskan
+    ? { pesan: "Evaluasi tercatat: TIDAK MEMUASKAN. Pertimbangkan membuat laporan ketidaksesuaian.", sukses: false }
+    : { pesan: "Evaluasi tercatat.", sukses: true };
+}
+
+export async function hapusPmeAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh menghapus siklus PME.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { pesan: "Siklus PME gak ditemukan.", sukses: false };
+  const supabase = createClient();
+  // RLS cuma mengizinkan hapus siklus yang belum dilaporkan (salah input).
+  const { data, error } = await supabase.from("lab_pme").delete().eq("id", id).eq("status", "diterima").select("id");
+  if (error) return { pesan: `Gagal hapus: ${error.message}`, sukses: false };
+  if (!data || data.length === 0) return { pesan: "Siklus yang sudah dilaporkan tidak bisa dihapus.", sukses: false };
+  segarkanPme();
+  return { pesan: "Siklus dihapus.", sukses: true };
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 14 -- Ketidaksesuaian & tindakan korektif (CAPA)
+// ---------------------------------------------------------------------------
+
+const KATEGORI_KS_VALID = ["pra_analitik", "analitik", "pasca_analitik", "alat", "reagen", "keselamatan", "lainnya"];
+const SUMBER_KS_VALID = ["qc", "pme", "sampel_ditolak", "alat", "reagen", "keluhan", "temuan_internal", "lainnya"];
+const DAMPAK_KS_VALID = ["rendah", "sedang", "tinggi"];
+
+function segarkanKs() {
+  revalidatePath("/dashboard/lab/ketidaksesuaian");
+  revalidatePath("/dashboard/lab");
+}
+
+export async function tambahKsAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh membuat laporan ketidaksesuaian.", sukses: false };
+  }
+  const kategori = String(formData.get("kategori") ?? "");
+  const sumber = String(formData.get("sumber") ?? "");
+  const dampak = String(formData.get("dampak") ?? "sedang");
+  const uraian = String(formData.get("uraian") ?? "").trim();
+  const tanggal = String(formData.get("tanggal") ?? "").trim() || hariIniWib();
+  if (!KATEGORI_KS_VALID.includes(kategori)) return { pesan: "Pilih kategori ketidaksesuaian.", sukses: false };
+  if (sumber && !SUMBER_KS_VALID.includes(sumber)) return { pesan: "Sumber tidak valid.", sukses: false };
+  if (!DAMPAK_KS_VALID.includes(dampak)) return { pesan: "Tingkat dampak tidak valid.", sukses: false };
+  if (!uraian) return { pesan: "Uraian kejadian wajib diisi.", sukses: false };
+  if (!tanggalValid(tanggal)) return { pesan: "Tanggal kejadian tidak valid.", sukses: false };
+  if (tanggal > hariIniWib()) return { pesan: "Tanggal kejadian tidak boleh di masa depan.", sukses: false };
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lab_ketidaksesuaian")
+    .insert({
+      tanggal,
+      kategori,
+      sumber: sumber || null,
+      uraian,
+      dampak,
+      tindakan_segera: teksAtauNull(formData, "tindakan_segera"),
+      dilaporkan_oleh: pemanggil.id,
+      dilaporkan_oleh_nama: pemanggil.nama_lengkap,
+    })
+    .select("no_ks")
+    .single();
+  if (error || !data) {
+    return {
+      pesan: `Gagal simpan: ${error?.message}${error?.message.includes("lab_ketidaksesuaian") ? ". Pastikan migrasi_tahap_49.sql sudah dijalankan." : ""}`,
+      sukses: false,
+    };
+  }
+  segarkanKs();
+  return { pesan: `Laporan ${data.no_ks} dibuat.`, sukses: true };
+}
+
+export async function tindakLanjutKsAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mengisi tindak lanjut.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { pesan: "Laporan gak ditemukan.", sukses: false };
+  const penyebab = String(formData.get("penyebab") ?? "").trim();
+  const tindakan = String(formData.get("tindakan_korektif") ?? "").trim();
+  const tenggat = tanggalOpsional(formData.get("tenggat"));
+  if (!penyebab) return { pesan: "Penyebab (akar masalah) wajib diisi.", sukses: false };
+  if (!tindakan) return { pesan: "Tindakan korektif wajib diisi.", sukses: false };
+  if (tenggat === "salah") return { pesan: "Tenggat tidak valid.", sukses: false };
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lab_ketidaksesuaian")
+    .update({
+      penyebab,
+      tindakan_korektif: tindakan,
+      penanggung_jawab: teksAtauNull(formData, "penanggung_jawab"),
+      tenggat,
+      status: "ditindaklanjuti",
+    })
+    .eq("id", id)
+    .neq("status", "ditutup")
+    .select("id");
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+  if (!data || data.length === 0) return { pesan: "Laporan sudah ditutup, tidak bisa diubah.", sukses: false };
+  segarkanKs();
+  return { pesan: "Tindak lanjut tersimpan.", sukses: true };
+}
+
+export async function tutupKsAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh menutup laporan.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const verifikasi = String(formData.get("verifikasi") ?? "").trim();
+  if (!id) return { pesan: "Laporan gak ditemukan.", sukses: false };
+  if (!verifikasi) return { pesan: "Isi verifikasi: bukti bahwa tindakan efektif dan masalah tidak terulang.", sukses: false };
+
+  const supabase = createClient();
+  const { data: ks, error: errBaca } = await supabase
+    .from("lab_ketidaksesuaian")
+    .select("status, penyebab, tindakan_korektif")
+    .eq("id", id)
+    .single();
+  if (errBaca || !ks) return { pesan: "Laporan gak ditemukan.", sukses: false };
+  if (ks.status === "ditutup") return { pesan: "Laporan sudah ditutup.", sukses: false };
+  if (!ks.penyebab || !ks.tindakan_korektif) {
+    return { pesan: "Isi penyebab dan tindakan korektif dulu sebelum menutup.", sukses: false };
+  }
+
+  const { error } = await supabase
+    .from("lab_ketidaksesuaian")
+    .update({ verifikasi, status: "ditutup", ditutup_oleh_nama: pemanggil.nama_lengkap })
+    .eq("id", id);
+  if (error) return { pesan: `Gagal menutup: ${error.message}`, sukses: false };
+  segarkanKs();
+  return { pesan: "Laporan ditutup.", sukses: true };
+}

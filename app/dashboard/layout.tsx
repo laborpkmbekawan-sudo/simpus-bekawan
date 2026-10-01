@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
+import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 import TombolKeluar from "./tombol-keluar";
 import MenuSamping from "./menu-samping";
 import { KontrolNotifikasiRujukan, ProviderNotifikasiRujukan } from "./notifikasi-rujukan";
@@ -40,6 +40,13 @@ export default async function LayoutDashboard({
   const terimaNotifRujukan = PERAN_PENERIMA_RUJUKAN.includes(pegawai.peran) && !!pegawai.lokasi_id;
   const kodeAkses = await getKodeAksesSaya(pegawai.id, pegawai.peran);
 
+  // Tipe lokasi kerja (induk/pustu) -- menentukan menu Lab Pustu.
+  let lokasiTipe: string | null = null;
+  if (pegawai.lokasi_id) {
+    const { data: lokasi } = await createClient().from("lokasi").select("tipe").eq("id", pegawai.lokasi_id).single();
+    lokasiTipe = lokasi?.tipe ?? null;
+  }
+
   // Notifikasi Lab: petugas Lab dapat permintaan masuk, peminta (klinis) dapat
   // hasil selesai. Petugas Lab cuma diaktifkan kalau punya akses Lintas Lab.
   const modeLab: ModeNotifikasiLab =
@@ -66,7 +73,7 @@ export default async function LayoutDashboard({
               Akun Petugas
             </div>
           </div>
-          <MenuSamping peran={pegawai.peran} kodeAkses={kodeAkses} />
+          <MenuSamping peran={pegawai.peran} kodeAkses={kodeAkses} lokasiTipe={lokasiTipe} />
           <KontrolNotifikasiRujukan />
         </div>
 

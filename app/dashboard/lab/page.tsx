@@ -216,6 +216,19 @@ export default async function HalamanAntreanLab() {
     (lotMentah ?? []) as { tanggal_kadaluarsa: string; stabilitas_hari: number | null; tanggal_dibuka: string | null }[]
   ).filter((l) => statusKadaluarsa(kadaluarsaEfektif(l).tanggal, hariIni).status !== "aman").length;
 
+  const [{ count: pmeTelat }, { count: ksTelat }] = await Promise.all([
+    supabase
+      .from("lab_pme")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "diterima")
+      .lt("batas_lapor", hariIni),
+    supabase
+      .from("lab_ketidaksesuaian")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "ditutup")
+      .lt("tenggat", hariIni),
+  ]);
+
   const kritisBelumLapor = (kritisMentah ?? []) as unknown as {
     id: string;
     no_lab: string;
@@ -281,6 +294,24 @@ export default async function HalamanAntreanLab() {
           className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
         >
           {lotBermasalah} lot reagen kadaluarsa atau segera kadaluarsa →
+        </Link>
+      )}
+
+      {(pmeTelat ?? 0) > 0 && (
+        <Link
+          href="/dashboard/lab/pme"
+          className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
+        >
+          {pmeTelat} siklus PME lewat batas lapor hasil →
+        </Link>
+      )}
+
+      {(ksTelat ?? 0) > 0 && (
+        <Link
+          href="/dashboard/lab/ketidaksesuaian"
+          className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
+        >
+          {ksTelat} laporan ketidaksesuaian lewat tenggat tindakan korektif →
         </Link>
       )}
 

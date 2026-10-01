@@ -288,3 +288,94 @@ export const WARNA_STATUS_KADALUARSA: Record<"kadaluarsa" | "segera" | "aman", s
   segera: "bg-clay-600/10 text-clay-700",
   aman: "bg-teal-700/10 text-teal-700",
 };
+
+// ---------------------------------------------------------------------------
+// FITUR 13 -- Pemantapan Mutu Eksternal (PME)
+// ---------------------------------------------------------------------------
+
+export const STATUS_PME: Record<string, string> = {
+  diterima: "Sampel diterima",
+  dilaporkan: "Hasil dilaporkan",
+  dievaluasi: "Sudah dievaluasi",
+};
+
+export const EVALUASI_PME: Record<string, string> = {
+  memuaskan: "Memuaskan",
+  peringatan: "Peringatan (SDI 2-3)",
+  tidak_memuaskan: "Tidak memuaskan",
+};
+
+export const WARNA_EVALUASI_PME: Record<string, string> = {
+  memuaskan: "bg-teal-700/10 text-teal-700",
+  peringatan: "bg-clay-600/10 text-clay-700",
+  tidak_memuaskan: "bg-red-600 text-white",
+};
+
+// ---------------------------------------------------------------------------
+// FITUR 14 -- Ketidaksesuaian & tindakan korektif (CAPA)
+// ---------------------------------------------------------------------------
+
+export const KATEGORI_KS: Record<string, string> = {
+  pra_analitik: "Pra-analitik",
+  analitik: "Analitik",
+  pasca_analitik: "Pasca-analitik",
+  alat: "Alat",
+  reagen: "Reagen / BHP",
+  keselamatan: "Keselamatan kerja",
+  lainnya: "Lainnya",
+};
+
+export const SUMBER_KS: Record<string, string> = {
+  qc: "QC harian",
+  pme: "PME",
+  sampel_ditolak: "Sampel ditolak",
+  alat: "Alat",
+  reagen: "Reagen",
+  keluhan: "Keluhan",
+  temuan_internal: "Temuan internal",
+  lainnya: "Lainnya",
+};
+
+export const DAMPAK_KS: Record<string, string> = { rendah: "Rendah", sedang: "Sedang", tinggi: "Tinggi" };
+
+export const WARNA_DAMPAK_KS: Record<string, string> = {
+  rendah: "bg-sand-100 text-ink/70",
+  sedang: "bg-clay-600/10 text-clay-700",
+  tinggi: "bg-red-600 text-white",
+};
+
+export const STATUS_KS: Record<string, string> = {
+  terbuka: "Terbuka",
+  ditindaklanjuti: "Ditindaklanjuti",
+  ditutup: "Ditutup",
+};
+
+export const WARNA_STATUS_KS: Record<string, string> = {
+  terbuka: "bg-clay-600/10 text-clay-700",
+  ditindaklanjuti: "bg-teal-700/10 text-teal-700",
+  ditutup: "bg-ink/5 text-ink/50",
+};
+
+// ---------------------------------------------------------------------------
+// Lab Pustu (laporan hasil & stok dari Pustu ke Lab Induk)
+// ---------------------------------------------------------------------------
+
+export const PERAN_PUSTU_LAB = ["dokter", "dokter_gigi", "perawat", "bidan"];
+
+export const STATUS_LAPORAN_PUSTU: Record<string, string> = {
+  terkirim: "Menunggu verifikasi",
+  diverifikasi: "Terverifikasi",
+  dikembalikan: "Dikembalikan",
+};
+
+export const WARNA_STATUS_LAPORAN_PUSTU: Record<string, string> = {
+  terkirim: "bg-clay-600/10 text-clay-700",
+  diverifikasi: "bg-teal-700/10 text-teal-700",
+  dikembalikan: "bg-red-500/10 text-red-600",
+};
+
+// "2026-09" -> "September 2026"
+export function namaBulan(periode: string): string {
+  const d = new Date(`${periode.slice(0, 7)}-01T00:00:00Z`);
+  return d.toLocaleDateString("id-ID", { timeZone: "UTC", month: "long", year: "numeric" });
+}
