@@ -15,6 +15,7 @@ type Baris = {
   diminta_oleh_nama: string | null;
   diminta_pada: string;
   divalidasi_pada: string | null;
+  kritis_dilaporkan_pada: string | null;
   kunjungan: {
     pasien: { nama_lengkap: string; no_rm: string } | null;
     klaster: { nama: string } | null;
@@ -23,7 +24,7 @@ type Baris = {
     id: string;
     dibatalkan: boolean;
     pemeriksaan: { nama: string; kategori: string } | null;
-    hasil: { flag: string | null }[];
+    hasil: { flag: string | null; kritis: boolean }[];
   }[];
 };
 
@@ -84,7 +85,7 @@ export default async function HalamanLaporanLab({
   const { data, error } = await supabase
     .from("lab_permintaan")
     .select(
-      `id, no_lab, status, prioritas, diminta_oleh_nama, diminta_pada, divalidasi_pada,
+      `id, no_lab, status, prioritas, diminta_oleh_nama, diminta_pada, divalidasi_pada, kritis_dilaporkan_pada,
        kunjungan:kunjungan_id (
          pasien:pasien_id (nama_lengkap, no_rm),
          klaster:klaster_tujuan_id (nama)
@@ -92,7 +93,7 @@ export default async function HalamanLaporanLab({
        items:lab_permintaan_item (
          id, dibatalkan,
          pemeriksaan:pemeriksaan_id (nama, kategori),
-         hasil:lab_hasil (flag)
+         hasil:lab_hasil (flag, kritis)
        )`
     )
     .gte("diminta_pada", awalHariWib(dari))
@@ -175,6 +176,9 @@ export default async function HalamanLaporanLab({
     perKlaster.set(nama, (perKlaster.get(nama) ?? 0) + 1);
   }
   const rekapKlaster = [...perKlaster.entries()].sort((a, b) => b[1] - a[1]);
+
+  const permintaanKritis = daftar.filter((p) => p.status !== "dibatalkan" && p.items.some((i) => !i.dibatalkan && i.hasil.some((h) => h.kritis)));
+  const kritisBelumLapor = permintaanKritis.filter((p) => !p.kritis_dilaporkan_pada).length;
 
   const terpotong = daftar.length >= BATAS_BARIS;
 
@@ -271,6 +275,22 @@ export default async function HalamanLaporanLab({
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-ink/45">Nilai kritis</h2>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-sm bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600">
+            Permintaan dengan nilai kritis: {permintaanKritis.length}
+          </span>
+          <span
+            className={`rounded-sm px-3 py-1.5 text-xs font-semibold ${
+              kritisBelumLapor > 0 ? "bg-red-600 text-white" : "bg-teal-700/10 text-teal-700"
+            }`}
+          >
+            Belum dicatat dilaporkan: {kritisBelumLapor}
+          </span>
         </div>
       </section>
 

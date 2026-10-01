@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 import { PERAN_LAB, umurTahun, type ParameterLab } from "@/lib/lab";
 import FormHasilLab, { type ItemForm } from "./form-hasil";
+import FormRujukKeluar from "./form-rujuk-keluar";
 import { PelacakLab, PilPrioritasLab } from "../komponen";
 
 type ItemDb = {
@@ -151,6 +152,8 @@ export default async function HalamanInputHasilLab({ params }: { params: { id: s
           Penanda rendah/tinggi dihitung otomatis dari nilai rujukan sesuai jenis kelamin pasien.
         </p>
       </section>
+
+      {items.length > 1 && <FormRujukKeluar items={items.filter((i) => Object.keys(i.tersimpan).length === 0).map((i) => ({ id: i.id, nama: i.nama }))} />}
 
       <FormHasilLab permintaanId={p.id} jenisKelamin={pasien?.jenis_kelamin ?? null} items={items} />
     </div>

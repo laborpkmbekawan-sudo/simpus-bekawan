@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 import { PERAN_LAB, umurTahun } from "@/lib/lab";
 import { awalHariWib, hariIniWib } from "@/lib/format";
@@ -165,6 +166,23 @@ export default async function HalamanAntreanLab() {
     );
   }
 
+  // Peringatan: hasil kritis yang belum dicatat dilaporkan + rujukan keluar menunggu hasil.
+  // Gagal (mis. migrasi 46 belum jalan) tidak boleh merusak antrean, jadi galat diabaikan.
+  const [{ data: kritisMentah }, { count: rujukanMenunggu }] = await Promise.all([
+    supabase
+      .from("lab_permintaan")
+      .select("id, no_lab, kunjungan:kunjungan_id (pasien:pasien_id (nama_lengkap)), items:lab_permintaan_item!inner (hasil:lab_hasil!inner (kritis))")
+      .eq("items.hasil.kritis", true)
+      .is("kritis_dilaporkan_pada", null)
+      .in("status", ["proses", "selesai"]),
+    supabase.from("lab_rujukan_keluar").select("id", { count: "exact", head: true }).eq("status", "dikirim"),
+  ]);
+  const kritisBelumLapor = (kritisMentah ?? []) as unknown as {
+    id: string;
+    no_lab: string;
+    kunjungan: { pasien: { nama_lengkap: string } | null } | null;
+  }[];
+
   const aktif = (aktifMentah ?? []) as unknown as Permintaan[];
   // Cito naik ke atas, sisanya urut waktu masuk.
   const urut = (a: Permintaan, b: Permintaan) =>
@@ -182,6 +200,32 @@ export default async function HalamanAntreanLab() {
           klaster yang meminta.
         </p>
       </div>
+
+      {kritisBelumLapor.length > 0 && (
+        <div className="rounded-card border border-red-600/30 bg-red-600/10 p-4">
+          <p className="text-sm font-bold text-red-700">⚠ {kritisBelumLapor.length} hasil kritis belum dicatat dilaporkan</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {kritisBelumLapor.map((k) => (
+              <Link
+                key={k.id}
+                href={`/dashboard/lab/hasil/${k.id}`}
+                className="rounded-sm bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+              >
+                {k.kunjungan?.pasien?.nama_lengkap ?? "Pasien"} · {k.no_lab}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(rujukanMenunggu ?? 0) > 0 && (
+        <Link
+          href="/dashboard/lab/rujukan"
+          className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
+        >
+          {rujukanMenunggu} rujukan lab keluar menunggu hasil →
+        </Link>
+      )}
 
       <Bagian judul="Permintaan masuk" daftar={masuk} kosong="Belum ada permintaan baru." />
       <Bagian judul="Sedang dikerjakan" daftar={dikerjakan} kosong="Tidak ada pemeriksaan yang sedang dikerjakan." />

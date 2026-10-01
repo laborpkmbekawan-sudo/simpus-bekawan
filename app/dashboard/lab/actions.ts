@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
-import { PERAN_LAB, PERAN_MINTA_LAB, hitungFlag, teksRujukan, type ParameterLab } from "@/lib/lab";
+import { PERAN_LAB, PERAN_MINTA_LAB, hitungFlag, hitungKritis, teksRujukan, type ParameterLab } from "@/lib/lab";
 
 type Hasil = { pesan: string; sukses: boolean };
 
@@ -382,7 +382,7 @@ export async function simpanHasilLabAction(_sebelum: Hasil | null, formData: For
   const { data: itemMentah, error: errItem } = await supabase
     .from("lab_permintaan_item")
     .select(
-      "id, dibatalkan, pemeriksaan:pemeriksaan_id (id, nama, parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, urutan, aktif))"
+      "id, dibatalkan, pemeriksaan:pemeriksaan_id (id, nama, parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, kritis_min, kritis_max, urutan, aktif))"
     )
     .eq("permintaan_id", permintaanId);
   if (errItem) return { pesan: `Gagal baca daftar pemeriksaan: ${errItem.message}`, sukses: false };
@@ -418,6 +418,7 @@ export async function simpanHasilLabAction(_sebelum: Hasil | null, formData: For
       rujukan_teks: teksRujukan(par, jenisKelamin) || null,
       nilai,
       flag: hitungFlag(par, jenisKelamin, nilai),
+      kritis: hitungKritis(par, nilai),
       catatan: String(k.catatan ?? "").trim() || null,
       dicatat_oleh: pemanggil.id,
       dicatat_pada: new Date().toISOString(),
@@ -532,4 +533,218 @@ export async function tandaiHasilDilihatAction(id: string): Promise<void> {
   const supabase = createClient();
   await supabase.rpc("lab_tandai_dilihat", { p_id: id });
   revalidatePath("/dashboard/lab/hasil");
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 7 -- Nilai kritis: batas per parameter + catatan lapor
+// ---------------------------------------------------------------------------
+
+export async function ubahBatasKritisAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh atur batas kritis.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const min = angkaAtauNull(String(formData.get("kritis_min") ?? ""));
+  const max = angkaAtauNull(String(formData.get("kritis_max") ?? ""));
+  if (!id) return { pesan: "Parameter gak ditemukan.", sukses: false };
+  if (min != null && max != null && min >= max) {
+    return { pesan: "Batas bawah harus lebih kecil dari batas atas.", sukses: false };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_parameter").update({ kritis_min: min, kritis_max: max }).eq("id", id).eq("tipe", "angka");
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+
+  segarkan();
+  return { pesan: min == null && max == null ? "Batas kritis dihapus." : "Batas kritis tersimpan.", sukses: true };
+}
+
+export async function laporKritisAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat pelaporan nilai kritis.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const penerima = String(formData.get("penerima") ?? "").trim();
+  const catatan = String(formData.get("catatan") ?? "").trim();
+  if (!id) return { pesan: "Permintaan gak ditemukan.", sukses: false };
+  if (!penerima) return { pesan: "Isi nama petugas yang dihubungi.", sukses: false };
+
+  const supabase = createClient();
+  const { data: adaKritis } = await supabase
+    .from("lab_hasil")
+    .select("id, item:item_id!inner (permintaan_id)")
+    .eq("kritis", true)
+    .eq("item.permintaan_id", id)
+    .limit(1);
+  if (!adaKritis || adaKritis.length === 0) {
+    return { pesan: "Permintaan ini tidak punya hasil kritis.", sukses: false };
+  }
+
+  const { error } = await supabase
+    .from("lab_permintaan")
+    .update({
+      kritis_dilaporkan_pada: new Date().toISOString(),
+      kritis_dilaporkan_ke: penerima,
+      kritis_dilaporkan_oleh: pemanggil.id,
+      kritis_dilaporkan_oleh_nama: pemanggil.nama_lengkap,
+      kritis_catatan: catatan || null,
+    })
+    .eq("id", id);
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+
+  segarkan();
+  revalidatePath(`/dashboard/lab/hasil/${id}`);
+  revalidatePath("/dashboard/lab/laporan");
+  return { pesan: "Pelaporan nilai kritis tercatat.", sukses: true };
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 8 -- Rujukan lab keluar
+// ---------------------------------------------------------------------------
+
+export async function rujukKeluarAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh merujuk pemeriksaan keluar.", sukses: false };
+  }
+  const itemId = String(formData.get("item_id") ?? "");
+  const tujuan = String(formData.get("tujuan") ?? "").trim();
+  const alasan = String(formData.get("alasan") ?? "").trim();
+  if (!itemId) return { pesan: "Pilih pemeriksaan yang dirujuk.", sukses: false };
+  if (!tujuan) return { pesan: "Isi tujuan rujukan (nama RS/lab).", sukses: false };
+
+  const supabase = createClient();
+  const { data: item } = await supabase
+    .from("lab_permintaan_item")
+    .select("id, dibatalkan, permintaan_id, pemeriksaan_id, pemeriksaan:pemeriksaan_id (nama), permintaan:permintaan_id (status, kunjungan_id)")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!item) return { pesan: "Pemeriksaan gak ditemukan.", sukses: false };
+
+  const perm = item.permintaan as unknown as { status: string; kunjungan_id: string } | null;
+  const periksa = item.pemeriksaan as unknown as { nama: string } | null;
+  if (!perm || !["sampel_diterima", "proses"].includes(perm.status)) {
+    return { pesan: "Rujukan cuma bisa dibuat saat permintaan sedang diproses Lab.", sukses: false };
+  }
+  if (item.dibatalkan) return { pesan: "Pemeriksaan ini sudah dikeluarkan dari permintaan.", sukses: false };
+
+  const { count: jumlahHasil } = await supabase
+    .from("lab_hasil")
+    .select("id", { count: "exact", head: true })
+    .eq("item_id", itemId);
+  if ((jumlahHasil ?? 0) > 0) {
+    return { pesan: "Pemeriksaan ini sudah punya hasil di Lab, gak bisa dirujuk keluar.", sukses: false };
+  }
+
+  const { count: sisa } = await supabase
+    .from("lab_permintaan_item")
+    .select("id", { count: "exact", head: true })
+    .eq("permintaan_id", item.permintaan_id)
+    .eq("dibatalkan", false)
+    .neq("id", itemId);
+  if ((sisa ?? 0) === 0) {
+    return {
+      pesan:
+        "Ini satu-satunya pemeriksaan aktif di permintaan. Kalau seluruh permintaan dirujuk, batalkan permintaan dan tulis tujuan rujukan di alasan batal.",
+      sukses: false,
+    };
+  }
+
+  const { data: rujukan, error } = await supabase
+    .from("lab_rujukan_keluar")
+    .insert({
+      permintaan_id: item.permintaan_id,
+      item_id: itemId,
+      pemeriksaan_id: item.pemeriksaan_id,
+      nama_pemeriksaan: periksa?.nama ?? "Pemeriksaan",
+      tujuan,
+      alasan: alasan || null,
+      dikirim_oleh: pemanggil.id,
+      dikirim_oleh_nama: pemanggil.nama_lengkap,
+    })
+    .select("id")
+    .single();
+  if (error || !rujukan) {
+    return { pesan: `Gagal membuat rujukan: ${error?.message}. Pastikan migrasi_tahap_46.sql sudah dijalankan.`, sukses: false };
+  }
+
+  const { error: errItem } = await supabase.from("lab_permintaan_item").update({ dibatalkan: true }).eq("id", itemId);
+  if (errItem) {
+    await supabase.from("lab_rujukan_keluar").delete().eq("id", rujukan.id);
+    return { pesan: `Gagal mengeluarkan pemeriksaan dari proses: ${errItem.message}`, sukses: false };
+  }
+
+  segarkan();
+  revalidatePath(`/dashboard/lab/${item.permintaan_id}`);
+  revalidatePath(`/dashboard/lab/hasil/${item.permintaan_id}`);
+  revalidatePath("/dashboard/lab/rujukan");
+  revalidatePath(`/dashboard/pelayanan/${perm.kunjungan_id}`);
+  return { pesan: `${periksa?.nama ?? "Pemeriksaan"} dirujuk ke ${tujuan}.`, sukses: true };
+}
+
+export async function catatHasilRujukanAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat hasil rujukan.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const hasilTeks = String(formData.get("hasil_teks") ?? "").trim();
+  if (!id) return { pesan: "Rujukan gak ditemukan.", sukses: false };
+  if (!hasilTeks) return { pesan: "Isi hasil dari lab rujukan.", sukses: false };
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lab_rujukan_keluar")
+    .update({
+      status: "hasil_diterima",
+      hasil_teks: hasilTeks,
+      hasil_diterima_pada: new Date().toISOString(),
+      hasil_dicatat_oleh_nama: pemanggil.nama_lengkap,
+    })
+    .eq("id", id)
+    .eq("status", "dikirim")
+    .select("id, permintaan_id")
+    .maybeSingle();
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+  if (!data) return { pesan: "Rujukan sudah diproses atau dibatalkan.", sukses: false };
+
+  revalidatePath("/dashboard/lab/rujukan");
+  revalidatePath(`/dashboard/lab/hasil/${data.permintaan_id}`);
+  segarkan();
+  return { pesan: "Hasil rujukan tercatat.", sukses: true };
+}
+
+export async function batalkanRujukanKeluarAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh membatalkan rujukan.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { pesan: "Rujukan gak ditemukan.", sukses: false };
+
+  const supabase = createClient();
+  const { data: r } = await supabase
+    .from("lab_rujukan_keluar")
+    .select("id, status, item_id, permintaan_id, permintaan:permintaan_id (status)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!r) return { pesan: "Rujukan gak ditemukan.", sukses: false };
+  if (r.status !== "dikirim") return { pesan: "Cuma rujukan yang masih menunggu hasil yang bisa dibatalkan.", sukses: false };
+
+  const { error } = await supabase.from("lab_rujukan_keluar").update({ status: "dibatalkan" }).eq("id", id).eq("status", "dikirim");
+  if (error) return { pesan: `Gagal membatalkan: ${error.message}`, sukses: false };
+
+  // Kembalikan pemeriksaan ke proses internal kalau permintaannya masih jalan.
+  const statusPerm = (r.permintaan as unknown as { status: string } | null)?.status;
+  if (r.item_id && statusPerm && ["sampel_diterima", "proses"].includes(statusPerm)) {
+    await supabase.from("lab_permintaan_item").update({ dibatalkan: false }).eq("id", r.item_id);
+  }
+
+  revalidatePath("/dashboard/lab/rujukan");
+  revalidatePath(`/dashboard/lab/${r.permintaan_id}`);
+  revalidatePath(`/dashboard/lab/hasil/${r.permintaan_id}`);
+  segarkan();
+  return { pesan: "Rujukan dibatalkan.", sukses: true };
 }

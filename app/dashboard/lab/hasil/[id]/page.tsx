@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
-import { PERAN_KLINIS_LAB, PERAN_LAB, umurTahun } from "@/lib/lab";
+import { PERAN_KLINIS_LAB, PERAN_LAB, STATUS_RUJUKAN_LAB, WARNA_STATUS_RUJUKAN_LAB, umurTahun } from "@/lib/lab";
 import { PelacakLab, PilPrioritasLab, PilStatusLab, TabelHasilLab, type ItemHasil } from "../../komponen";
 import TandaiDilihatLab from "../tandai-dilihat";
+import FormLaporKritis from "./form-lapor-kritis";
 import AksiAntreanLab from "../../aksi-antrean";
 import { waktuWib } from "@/lib/format";
 
@@ -31,6 +32,7 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
     .select(
       `id, no_lab, status, prioritas, diagnosis_kerja, catatan_klinis, catatan_validasi, alasan_batal,
        diminta_oleh, diminta_oleh_nama, diminta_pada, sampel_diterima_pada, divalidasi_oleh_nama, divalidasi_pada, hasil_dilihat_pada,
+       kritis_dilaporkan_pada, kritis_dilaporkan_ke, kritis_dilaporkan_oleh_nama, kritis_catatan,
        kunjungan:kunjungan_id (
          id,
          pasien:pasien_id (id, nama_lengkap, no_rm, jenis_kelamin, tanggal_lahir),
@@ -41,9 +43,26 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
     .maybeSingle();
   if (!p) notFound();
 
+  const { data: rujukanMentah } = await supabase
+    .from("lab_rujukan_keluar")
+    .select("id, nama_pemeriksaan, tujuan, alasan, status, dikirim_pada, hasil_teks, hasil_diterima_pada")
+    .eq("permintaan_id", p.id)
+    .neq("status", "dibatalkan")
+    .order("dikirim_pada");
+  const rujukan = (rujukanMentah ?? []) as {
+    id: string;
+    nama_pemeriksaan: string;
+    tujuan: string;
+    alasan: string | null;
+    status: string;
+    dikirim_pada: string;
+    hasil_teks: string | null;
+    hasil_diterima_pada: string | null;
+  }[];
+
   const { data: itemMentah } = await supabase
     .from("lab_permintaan_item")
-    .select("id, dibatalkan, pemeriksaan:pemeriksaan_id (nama), hasil:lab_hasil (id, nama_parameter, satuan, rujukan_teks, nilai, flag, catatan, parameter:parameter_id (urutan))")
+    .select("id, dibatalkan, pemeriksaan:pemeriksaan_id (nama), hasil:lab_hasil (id, nama_parameter, satuan, rujukan_teks, nilai, flag, kritis, catatan, parameter:parameter_id (urutan))")
     .eq("permintaan_id", p.id);
 
   const kunj = p.kunjungan as unknown as {
@@ -59,6 +78,7 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
 
   const lab = PERAN_LAB.includes(pemanggil.peran);
   const peminta = p.diminta_oleh === pemanggil.id;
+  const adaKritis = items.some((i) => i.hasil.some((h) => h.kritis));
   const adaAbnormal = items.some((i) => i.hasil.some((h) => h.flag && h.flag !== "normal"));
 
   return (
@@ -137,6 +157,55 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
           </p>
         )}
       </section>
+
+      {adaKritis &&
+        (p.kritis_dilaporkan_pada ? (
+          <div className="rounded-sm border border-teal-700/30 bg-teal-700/10 px-3.5 py-2.5 text-sm text-teal-700">
+            <span className="font-bold">Nilai kritis sudah dilaporkan</span> ke {p.kritis_dilaporkan_ke} oleh{" "}
+            {p.kritis_dilaporkan_oleh_nama ?? "Lab"} pada {waktuWib(p.kritis_dilaporkan_pada)}
+            {p.kritis_catatan ? ` (${p.kritis_catatan})` : ""}.
+          </div>
+        ) : (
+          <div className="rounded-sm border border-red-600/30 bg-red-600/10 px-3.5 py-3 text-sm text-red-700">
+            <p className="font-bold">⚠ Ada nilai kritis{lab ? " yang belum dicatat dilaporkan." : ", Lab sedang/akan menghubungi petugas."}</p>
+            {lab && (
+              <>
+                <p className="mt-0.5 text-xs">Hubungi dokter/perawat penanggung jawab, minta baca ulang hasilnya, lalu catat di sini.</p>
+                <FormLaporKritis id={p.id} />
+              </>
+            )}
+          </div>
+        ))}
+
+      {rujukan.length > 0 && (
+        <section className="space-y-3 rounded-card border border-sand-100 bg-white p-5">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-ink/45">Pemeriksaan dirujuk ke luar</h2>
+          {rujukan.map((r) => (
+            <div key={r.id} className="space-y-1 border-b border-sand-100 pb-3 last:border-0 last:pb-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-ink">
+                  {r.nama_pemeriksaan} <span className="font-medium text-ink/50">→ {r.tujuan}</span>
+                </p>
+                <span className={`rounded-sm px-2.5 py-1 text-xs font-semibold ${WARNA_STATUS_RUJUKAN_LAB[r.status] ?? "bg-ink/5 text-ink/70"}`}>
+                  {STATUS_RUJUKAN_LAB[r.status] ?? r.status}
+                </span>
+              </div>
+              <p className="text-xs text-ink/45">
+                Dikirim {waktuWib(r.dikirim_pada)}
+                {r.alasan ? ` · ${r.alasan}` : ""}
+              </p>
+              {r.status === "hasil_diterima" && r.hasil_teks && (
+                <p className="whitespace-pre-wrap rounded-sm bg-sand-50 px-3.5 py-2.5 text-sm text-ink/80">
+                  {r.hasil_teks}
+                  {r.hasil_diterima_pada && (
+                    <span className="mt-1 block text-xs text-ink/45">Hasil diterima {waktuWib(r.hasil_diterima_pada)}</span>
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
 
       {p.status === "selesai" ? (
         <section className="space-y-4 rounded-card border border-sand-100 bg-white p-5">

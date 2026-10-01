@@ -1,9 +1,10 @@
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
-import { KATEGORI_LAB, PERAN_KLINIS_LAB, PERAN_LAB, teksRujukan, type ParameterLab } from "@/lib/lab";
+import { KATEGORI_LAB, PERAN_KLINIS_LAB, PERAN_LAB, teksKritis, teksRujukan, type ParameterLab } from "@/lib/lab";
 import FormTambahPemeriksaan from "./form-tambah-pemeriksaan";
 import TogglePemeriksaan from "./toggle-pemeriksaan";
 import Link from "next/link";
 import PilihTarif from "./pilih-tarif";
+import BatasKritis from "./batas-kritis";
 import type { OpsiTarif } from "./form-tambah-pemeriksaan";
 
 type Pemeriksaan = {
@@ -42,7 +43,7 @@ export default async function HalamanKatalogLab() {
   const [{ data, error }, { data: tarifMentah }] = await Promise.all([
     supabase
     .from("lab_pemeriksaan")
-    .select("id, kode, nama, kategori, jenis_sampel, aktif, tarif_layanan_id, tarif:tarif_layanan_id (nama_layanan, harga), resep:lab_resep_bhp (id), parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, urutan, aktif)")
+    .select("id, kode, nama, kategori, jenis_sampel, aktif, tarif_layanan_id, tarif:tarif_layanan_id (nama_layanan, harga), resep:lab_resep_bhp (id), parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, kritis_min, kritis_max, urutan, aktif)")
     .order("nama"),
     supabase.from("tarif_layanan").select("id, nama_layanan, harga").eq("aktif", true).order("nama_layanan"),
   ]);
@@ -129,7 +130,8 @@ export default async function HalamanKatalogLab() {
                             <th className="py-2 pr-4 font-medium">Parameter</th>
                             <th className="py-2 pr-4 font-medium">Tipe</th>
                             <th className="py-2 pr-4 font-medium">Satuan</th>
-                            <th className="py-2 font-medium">Nilai rujukan</th>
+                            <th className="py-2 pr-4 font-medium">Nilai rujukan</th>
+                            <th className="py-2 font-medium">Batas kritis</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -142,6 +144,15 @@ export default async function HalamanKatalogLab() {
                                 {par.tipe === "pilihan"
                                   ? `${(par.pilihan ?? []).join(" / ")}${par.pilihan_normal ? ` (normal: ${par.pilihan_normal})` : ""}`
                                   : rujukanTampil(par)}
+                              </td>
+                              <td className="py-2 text-ink/70">
+                                {par.tipe !== "angka" ? (
+                                  "—"
+                                ) : kelola ? (
+                                  <BatasKritis id={par.id} kritisMin={par.kritis_min ?? null} kritisMax={par.kritis_max ?? null} />
+                                ) : (
+                                  teksKritis(par) || "—"
+                                )}
                               </td>
                             </tr>
                           ))}

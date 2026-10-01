@@ -13,6 +13,8 @@ export type ParameterLab = {
   max_l: number | null;
   min_p: number | null;
   max_p: number | null;
+  kritis_min?: number | null;
+  kritis_max?: number | null;
   urutan: number;
   aktif: boolean;
 };
@@ -33,6 +35,18 @@ export const KATEGORI_LAB = [
   "Imunohematologi",
   "Lainnya",
 ];
+
+export const STATUS_RUJUKAN_LAB: Record<string, string> = {
+  dikirim: "Dikirim, menunggu hasil",
+  hasil_diterima: "Hasil diterima",
+  dibatalkan: "Dibatalkan",
+};
+
+export const WARNA_STATUS_RUJUKAN_LAB: Record<string, string> = {
+  dikirim: "bg-clay-600/10 text-clay-700",
+  hasil_diterima: "bg-teal-700/10 text-teal-700",
+  dibatalkan: "bg-red-500/10 text-red-600",
+};
 
 export const STATUS_LAB: Record<string, string> = {
   diminta: "Menunggu Lab",
@@ -104,6 +118,26 @@ export function hitungFlag(p: ParameterLab, jenisKelamin: string | null, nilai: 
   if (min != null && angka < min) return "rendah";
   if (max != null && angka > max) return "tinggi";
   return "normal";
+}
+
+// Nilai kritis: angka di luar batas kritis parameter (berlaku umum L/P).
+export function hitungKritis(p: ParameterLab, nilai: string): boolean {
+  if (p.tipe !== "angka") return false;
+  const angka = Number(nilai.trim().replace(",", "."));
+  if (Number.isNaN(angka) || nilai.trim() === "") return false;
+  if (p.kritis_min != null && angka < Number(p.kritis_min)) return true;
+  if (p.kritis_max != null && angka > Number(p.kritis_max)) return true;
+  return false;
+}
+
+export function teksKritis(p: ParameterLab): string {
+  const min = p.kritis_min != null ? Number(p.kritis_min) : null;
+  const max = p.kritis_max != null ? Number(p.kritis_max) : null;
+  const f = (n: number) => String(n).replace(".", ",");
+  if (min != null && max != null) return `< ${f(min)} atau > ${f(max)}`;
+  if (min != null) return `< ${f(min)}`;
+  if (max != null) return `> ${f(max)}`;
+  return "";
 }
 
 export function umurTahun(tanggalLahir: string | null): string {

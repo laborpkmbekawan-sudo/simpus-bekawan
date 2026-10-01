@@ -7,6 +7,7 @@ export type HasilBaris = {
   rujukan_teks: string | null;
   nilai: string;
   flag: string | null;
+  kritis?: boolean;
   catatan: string | null;
   parameter?: { urutan: number } | null;
 };
@@ -88,6 +89,9 @@ export function TabelHasilLab({ items }: { items: ItemHasil[] }) {
                       </td>
                       <td className={`py-2 pr-4 ${h.flag && h.flag !== "normal" ? WARNA_FLAG[h.flag] : "font-medium text-ink"}`}>
                         {h.nilai}
+                        {h.kritis && (
+                          <span className="ml-1.5 rounded-sm bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Kritis</span>
+                        )}
                       </td>
                       <td className="py-2 pr-4 text-ink/60">{h.satuan ?? "—"}</td>
                       <td className="py-2 pr-4 text-ink/60">{h.rujukan_teks || "—"}</td>
