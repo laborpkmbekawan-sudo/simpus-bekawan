@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
-import { hariIniWib } from "@/lib/format";
+import { hariIniWib, tanggalValid } from "@/lib/format";
 import { PERAN_LAB, PERAN_MINTA_LAB, hitungFlag, hitungKritis, teksRujukan, type ParameterLab } from "@/lib/lab";
 
 type Hasil = { pesan: string; sukses: boolean };
@@ -884,4 +884,266 @@ export async function ubahAktifKontrolQcAction(_sebelum: Hasil | null, formData:
 
   revalidatePath("/dashboard/lab/qc");
   return { pesan: aktif ? "Bahan kontrol diaktifkan." : "Bahan kontrol dinonaktifkan.", sukses: true };
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 11 -- Alat lab, kalibrasi & pemeliharaan
+// ---------------------------------------------------------------------------
+
+const JENIS_LOG_ALAT_VALID = ["kalibrasi", "pemeliharaan", "perbaikan"];
+const HASIL_LOG_ALAT_VALID = ["baik", "perlu_tindak_lanjut", "gagal"];
+const KONDISI_ALAT_VALID = ["baik", "perlu_perbaikan", "rusak", "nonaktif"];
+
+function hariBulatPositif(v: string): number | null | "salah" {
+  const t = (v ?? "").trim();
+  if (!t) return null;
+  const n = Number(t);
+  if (!Number.isInteger(n) || n <= 0) return "salah";
+  return n;
+}
+
+function tanggalOpsional(v: FormDataEntryValue | null): string | null | "salah" {
+  const t = String(v ?? "").trim();
+  if (!t) return null;
+  return tanggalValid(t) ? t : "salah";
+}
+
+function segarkanAlat() {
+  revalidatePath("/dashboard/lab/alat");
+  revalidatePath("/dashboard/lab");
+}
+
+export async function tambahAlatAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh menambah alat.", sukses: false };
+  }
+  const nama = String(formData.get("nama") ?? "").trim();
+  if (!nama) return { pesan: "Nama alat wajib diisi.", sukses: false };
+
+  const intervalKal = hariBulatPositif(String(formData.get("interval_kalibrasi_hari") ?? ""));
+  const intervalPem = hariBulatPositif(String(formData.get("interval_pemeliharaan_hari") ?? ""));
+  if (intervalKal === "salah" || intervalPem === "salah") {
+    return { pesan: "Interval harus berupa bilangan bulat lebih dari 0 (hari).", sukses: false };
+  }
+  const pengadaan = tanggalOpsional(formData.get("tanggal_pengadaan"));
+  const kalTerakhir = tanggalOpsional(formData.get("kalibrasi_terakhir"));
+  const pemTerakhir = tanggalOpsional(formData.get("pemeliharaan_terakhir"));
+  if (pengadaan === "salah" || kalTerakhir === "salah" || pemTerakhir === "salah") {
+    return { pesan: "Format tanggal tidak valid.", sukses: false };
+  }
+  const hariIni = hariIniWib();
+  if ((kalTerakhir && kalTerakhir > hariIni) || (pemTerakhir && pemTerakhir > hariIni)) {
+    return { pesan: "Tanggal kalibrasi/pemeliharaan terakhir tidak boleh di masa depan.", sukses: false };
+  }
+
+  const teks = (k: string) => String(formData.get(k) ?? "").trim() || null;
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_alat").insert({
+    nama,
+    merk: teks("merk"),
+    tipe: teks("tipe"),
+    no_seri: teks("no_seri"),
+    lokasi: teks("lokasi"),
+    tanggal_pengadaan: pengadaan,
+    interval_kalibrasi_hari: intervalKal,
+    interval_pemeliharaan_hari: intervalPem,
+    kalibrasi_terakhir: kalTerakhir,
+    pemeliharaan_terakhir: pemTerakhir,
+    catatan: teks("catatan"),
+  });
+  if (error) {
+    return {
+      pesan: `Gagal simpan: ${error.message}${error.message.includes("lab_alat") ? ". Pastikan migrasi_tahap_48.sql sudah dijalankan." : ""}`,
+      sukses: false,
+    };
+  }
+  segarkanAlat();
+  return { pesan: `Alat "${nama}" ditambahkan.`, sukses: true };
+}
+
+export async function ubahKondisiAlatAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mengubah kondisi alat.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const kondisi = String(formData.get("kondisi") ?? "");
+  if (!id) return { pesan: "Alat gak ditemukan.", sukses: false };
+  if (!KONDISI_ALAT_VALID.includes(kondisi)) return { pesan: "Kondisi tidak valid.", sukses: false };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_alat").update({ kondisi }).eq("id", id);
+  if (error) return { pesan: `Gagal ubah: ${error.message}`, sukses: false };
+  segarkanAlat();
+  return { pesan: "Kondisi alat diperbarui.", sukses: true };
+}
+
+export async function catatLogAlatAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat kegiatan alat.", sukses: false };
+  }
+  const alatId = String(formData.get("alat_id") ?? "");
+  const jenis = String(formData.get("jenis") ?? "");
+  const hasil = String(formData.get("hasil") ?? "");
+  const tanggal = String(formData.get("tanggal") ?? "").trim();
+  if (!alatId) return { pesan: "Alat gak ditemukan.", sukses: false };
+  if (!JENIS_LOG_ALAT_VALID.includes(jenis)) return { pesan: "Jenis kegiatan tidak valid.", sukses: false };
+  if (!HASIL_LOG_ALAT_VALID.includes(hasil)) return { pesan: "Hasil kegiatan tidak valid.", sukses: false };
+  if (!tanggalValid(tanggal)) return { pesan: "Tanggal kegiatan tidak valid.", sukses: false };
+  if (tanggal > hariIniWib()) return { pesan: "Tanggal kegiatan tidak boleh di masa depan.", sukses: false };
+
+  const teks = (k: string) => String(formData.get(k) ?? "").trim() || null;
+  const catatan = teks("catatan");
+  if (hasil === "gagal" && !catatan) {
+    return { pesan: "Kalau hasil gagal, isi catatan penyebab / tindakan yang diambil.", sukses: false };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_alat_log").insert({
+    alat_id: alatId,
+    jenis,
+    tanggal,
+    hasil,
+    pelaksana: teks("pelaksana"),
+    no_sertifikat: teks("no_sertifikat"),
+    catatan,
+    dicatat_oleh: pemanggil.id,
+    dicatat_oleh_nama: pemanggil.nama_lengkap,
+  });
+  if (error) return { pesan: `Gagal simpan: ${error.message}`, sukses: false };
+
+  segarkanAlat();
+  if (hasil === "gagal" && jenis !== "perbaikan") {
+    return { pesan: "Tercatat GAGAL. Alat otomatis ditandai perlu perbaikan, jadwal tidak maju. Jangan dipakai untuk sampel pasien sebelum diperbaiki dan diulang.", sukses: false };
+  }
+  if (hasil === "gagal") return { pesan: "Perbaikan tercatat gagal, alat ditandai rusak.", sukses: false };
+  return { pesan: "Kegiatan tercatat, jadwal berikutnya diperbarui otomatis.", sukses: true };
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 12 -- Lot reagen & kadaluarsa
+// ---------------------------------------------------------------------------
+
+function segarkanLot() {
+  revalidatePath("/dashboard/lab/reagen");
+  revalidatePath("/dashboard/lab");
+}
+
+export async function tambahLotAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat lot reagen.", sukses: false };
+  }
+  const bhpId = String(formData.get("bhp_id") ?? "");
+  const noLot = String(formData.get("no_lot") ?? "").trim();
+  const kadaluarsa = String(formData.get("tanggal_kadaluarsa") ?? "").trim();
+  const terima = String(formData.get("tanggal_terima") ?? "").trim() || hariIniWib();
+  if (!bhpId) return { pesan: "Pilih reagen/BHP dulu.", sukses: false };
+  if (!noLot) return { pesan: "Nomor lot wajib diisi.", sukses: false };
+  if (!tanggalValid(kadaluarsa)) return { pesan: "Tanggal kadaluarsa wajib diisi dengan benar.", sukses: false };
+  if (!tanggalValid(terima)) return { pesan: "Tanggal terima tidak valid.", sukses: false };
+
+  const jumlahTeks = String(formData.get("jumlah_diterima") ?? "").trim();
+  const jumlah = jumlahTeks ? angkaAtauNull(jumlahTeks) : null;
+  if (jumlahTeks && (jumlah == null || jumlah < 0)) {
+    return { pesan: "Jumlah diterima harus berupa angka (0 atau lebih).", sukses: false };
+  }
+  const stabilitas = hariBulatPositif(String(formData.get("stabilitas_hari") ?? ""));
+  if (stabilitas === "salah") {
+    return { pesan: "Masa stabilitas harus bilangan bulat lebih dari 0 (hari).", sukses: false };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_reagen_lot").insert({
+    bhp_id: bhpId,
+    no_lot: noLot,
+    tanggal_kadaluarsa: kadaluarsa,
+    tanggal_terima: terima,
+    jumlah_diterima: jumlah,
+    stabilitas_hari: stabilitas,
+    catatan: String(formData.get("catatan") ?? "").trim() || null,
+    dicatat_oleh: pemanggil.id,
+    dicatat_oleh_nama: pemanggil.nama_lengkap,
+  });
+  if (error) {
+    if (error.code === "23505") {
+      return { pesan: `Lot ${noLot} untuk reagen ini sudah tercatat.`, sukses: false };
+    }
+    return {
+      pesan: `Gagal simpan: ${error.message}${error.message.includes("lab_reagen_lot") ? ". Pastikan migrasi_tahap_48.sql sudah dijalankan." : ""}`,
+      sukses: false,
+    };
+  }
+  segarkanLot();
+  const peringatan = kadaluarsa < hariIniWib() ? " Perhatian: lot ini SUDAH kadaluarsa, jangan dipakai." : "";
+  return { pesan: `Lot ${noLot} tercatat.${peringatan}`, sukses: !peringatan };
+}
+
+export async function ubahStatusLotAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mengubah status lot.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const catatan = String(formData.get("catatan") ?? "").trim();
+  if (!id) return { pesan: "Lot gak ditemukan.", sukses: false };
+  if (!["dipakai", "habis", "dibuang"].includes(status)) return { pesan: "Status tidak valid.", sukses: false };
+  if (status === "dibuang" && !catatan) {
+    return { pesan: "Isi alasan pembuangan (mis. kadaluarsa, kontaminasi, rusak).", sukses: false };
+  }
+
+  const supabase = createClient();
+  const { data: lot, error: errBaca } = await supabase
+    .from("lab_reagen_lot")
+    .select("status, tanggal_kadaluarsa, tanggal_dibuka, stabilitas_hari, catatan")
+    .eq("id", id)
+    .single();
+  if (errBaca || !lot) return { pesan: "Lot gak ditemukan.", sukses: false };
+  if (lot.status === "habis" || lot.status === "dibuang") {
+    return { pesan: "Lot ini sudah ditutup (habis/dibuang), statusnya tidak bisa diubah lagi.", sukses: false };
+  }
+
+  const hariIni = hariIniWib();
+  if (status === "dipakai") {
+    if (lot.status === "dipakai") return { pesan: "Lot sudah berstatus dipakai.", sukses: false };
+    if (lot.tanggal_kadaluarsa < hariIni) {
+      return { pesan: "Lot sudah kadaluarsa, tidak boleh dipakai. Tandai dibuang.", sukses: false };
+    }
+  }
+
+  const ubah: Record<string, string | null> = { status };
+  if (status === "dipakai") ubah.tanggal_dibuka = lot.tanggal_dibuka ?? hariIni;
+  if (catatan) {
+    ubah.catatan = lot.catatan ? `${lot.catatan} | ${catatan}` : catatan;
+  }
+  const { error } = await supabase.from("lab_reagen_lot").update(ubah).eq("id", id);
+  if (error) return { pesan: `Gagal ubah: ${error.message}`, sukses: false };
+
+  segarkanLot();
+  return {
+    pesan: status === "dipakai" ? "Lot mulai dipakai, tanggal dibuka tercatat hari ini." : status === "habis" ? "Lot ditandai habis." : "Lot ditandai dibuang.",
+    sukses: true,
+  };
+}
+
+export async function hapusLotAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh menghapus lot.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { pesan: "Lot gak ditemukan.", sukses: false };
+
+  const supabase = createClient();
+  // RLS cuma mengizinkan hapus lot yang masih "tersimpan" (salah input).
+  const { data, error } = await supabase.from("lab_reagen_lot").delete().eq("id", id).eq("status", "tersimpan").select("id");
+  if (error) return { pesan: `Gagal hapus: ${error.message}`, sukses: false };
+  if (!data || data.length === 0) {
+    return { pesan: "Lot tidak bisa dihapus (sudah pernah dipakai). Tandai habis atau dibuang saja.", sukses: false };
+  }
+  segarkanLot();
+  return { pesan: "Lot dihapus.", sukses: true };
 }

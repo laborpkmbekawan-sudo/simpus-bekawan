@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
-import { PERAN_LAB, umurTahun } from "@/lib/lab";
+import { PERAN_LAB, kadaluarsaEfektif, statusJadwal, statusKadaluarsa, umurTahun } from "@/lib/lab";
 import { awalHariWib, hariIniWib } from "@/lib/format";
 import AksiAntreanLab from "./aksi-antrean";
 import { PelacakLab, PilPrioritasLab, PilStatusLab } from "./komponen";
@@ -186,6 +186,36 @@ export default async function HalamanAntreanLab() {
       .in("status", ["proses", "selesai"]),
     supabase.from("lab_rujukan_keluar").select("id", { count: "exact", head: true }).eq("status", "dikirim"),
   ]);
+  // Peringatan alat (kalibrasi/pemeliharaan telat, rusak) dan lot reagen kadaluarsa.
+  // Sama seperti di atas: galat (mis. migrasi 48 belum jalan) diabaikan.
+  const hariIni = hariIniWib();
+  const [{ data: alatMentah }, { data: lotMentah }] = await Promise.all([
+    supabase
+      .from("lab_alat")
+      .select("kondisi, interval_kalibrasi_hari, kalibrasi_berikutnya, interval_pemeliharaan_hari, pemeliharaan_berikutnya")
+      .neq("kondisi", "nonaktif"),
+    supabase
+      .from("lab_reagen_lot")
+      .select("tanggal_kadaluarsa, stabilitas_hari, tanggal_dibuka")
+      .in("status", ["tersimpan", "dipakai"]),
+  ]);
+  const alatBermasalah = (
+    (alatMentah ?? []) as {
+      kondisi: string;
+      interval_kalibrasi_hari: number | null;
+      kalibrasi_berikutnya: string | null;
+      interval_pemeliharaan_hari: number | null;
+      pemeliharaan_berikutnya: string | null;
+    }[]
+  ).filter((a) => {
+    const kal = statusJadwal(a.interval_kalibrasi_hari, a.kalibrasi_berikutnya, hariIni).status;
+    const pem = statusJadwal(a.interval_pemeliharaan_hari, a.pemeliharaan_berikutnya, hariIni).status;
+    return a.kondisi === "rusak" || a.kondisi === "perlu_perbaikan" || kal === "terlambat" || pem === "terlambat";
+  }).length;
+  const lotBermasalah = (
+    (lotMentah ?? []) as { tanggal_kadaluarsa: string; stabilitas_hari: number | null; tanggal_dibuka: string | null }[]
+  ).filter((l) => statusKadaluarsa(kadaluarsaEfektif(l).tanggal, hariIni).status !== "aman").length;
+
   const kritisBelumLapor = (kritisMentah ?? []) as unknown as {
     id: string;
     no_lab: string;
@@ -233,6 +263,24 @@ export default async function HalamanAntreanLab() {
           className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
         >
           {rujukanMenunggu} rujukan lab keluar menunggu hasil →
+        </Link>
+      )}
+
+      {alatBermasalah > 0 && (
+        <Link
+          href="/dashboard/lab/alat"
+          className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
+        >
+          {alatBermasalah} alat lab perlu perhatian (kalibrasi/pemeliharaan terlambat atau alat bermasalah) →
+        </Link>
+      )}
+
+      {lotBermasalah > 0 && (
+        <Link
+          href="/dashboard/lab/reagen"
+          className="block rounded-card border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm font-semibold text-clay-700"
+        >
+          {lotBermasalah} lot reagen kadaluarsa atau segera kadaluarsa →
         </Link>
       )}
 

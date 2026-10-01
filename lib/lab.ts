@@ -2,6 +2,8 @@
 // (rendah/tinggi/abnormal) terhadap nilai rujukan. Perhitungan penanda
 // dipakai di server action -- klien cuma menampilkan, tidak dipercaya.
 
+import { geserHari, selisihHari } from "@/lib/format";
+
 export type ParameterLab = {
   id: string;
   nama: string;
@@ -170,3 +172,119 @@ export function umurTahun(tanggalLahir: string | null): string {
   if (now.getMonth() < lahir.getMonth() || (now.getMonth() === lahir.getMonth() && now.getDate() < lahir.getDate())) u -= 1;
   return `${u} tahun`;
 }
+
+
+// ---------------------------------------------------------------------------
+// FITUR 11 -- Alat lab, kalibrasi & pemeliharaan
+// ---------------------------------------------------------------------------
+
+export const KONDISI_ALAT: Record<string, string> = {
+  baik: "Baik",
+  perlu_perbaikan: "Perlu perbaikan",
+  rusak: "Rusak",
+  nonaktif: "Nonaktif",
+};
+
+export const WARNA_KONDISI_ALAT: Record<string, string> = {
+  baik: "bg-teal-700/10 text-teal-700",
+  perlu_perbaikan: "bg-clay-600/10 text-clay-700",
+  rusak: "bg-red-600 text-white",
+  nonaktif: "bg-ink/5 text-ink/50",
+};
+
+export const JENIS_LOG_ALAT: Record<string, string> = {
+  kalibrasi: "Kalibrasi",
+  pemeliharaan: "Pemeliharaan rutin",
+  perbaikan: "Perbaikan",
+};
+
+export const HASIL_LOG_ALAT: Record<string, string> = {
+  baik: "Baik / sesuai",
+  perlu_tindak_lanjut: "Perlu tindak lanjut",
+  gagal: "Gagal / tidak sesuai",
+};
+
+export const WARNA_HASIL_LOG_ALAT: Record<string, string> = {
+  baik: "bg-teal-700/10 text-teal-700",
+  perlu_tindak_lanjut: "bg-clay-600/10 text-clay-700",
+  gagal: "bg-red-600 text-white",
+};
+
+export const AMBANG_SEGERA_ALAT_HARI = 14;
+
+export type StatusJadwal = "tidak_dijadwalkan" | "belum_pernah" | "terlambat" | "segera" | "aman";
+
+// Status jadwal kalibrasi/pemeliharaan. `berikutnya` dihitung database
+// (terakhir + interval); di sini cuma dibandingkan dengan hari ini (WIB).
+export function statusJadwal(
+  interval: number | null,
+  berikutnya: string | null,
+  hariIni: string,
+): { status: StatusJadwal; sisaHari: number | null } {
+  if (!interval) return { status: "tidak_dijadwalkan", sisaHari: null };
+  if (!berikutnya) return { status: "belum_pernah", sisaHari: null };
+  const sisa = selisihHari(hariIni, berikutnya);
+  if (sisa < 0) return { status: "terlambat", sisaHari: sisa };
+  if (sisa <= AMBANG_SEGERA_ALAT_HARI) return { status: "segera", sisaHari: sisa };
+  return { status: "aman", sisaHari: sisa };
+}
+
+export const WARNA_STATUS_JADWAL: Record<StatusJadwal, string> = {
+  tidak_dijadwalkan: "bg-ink/5 text-ink/50",
+  belum_pernah: "bg-clay-600/10 text-clay-700",
+  terlambat: "bg-red-600 text-white",
+  segera: "bg-clay-600/10 text-clay-700",
+  aman: "bg-teal-700/10 text-teal-700",
+};
+
+// ---------------------------------------------------------------------------
+// FITUR 12 -- Lot reagen & kadaluarsa
+// ---------------------------------------------------------------------------
+
+export const STATUS_LOT: Record<string, string> = {
+  tersimpan: "Tersimpan (belum dibuka)",
+  dipakai: "Sedang dipakai",
+  habis: "Habis",
+  dibuang: "Dibuang",
+};
+
+export const WARNA_STATUS_LOT: Record<string, string> = {
+  tersimpan: "bg-sand-100 text-ink/70",
+  dipakai: "bg-teal-700/10 text-teal-700",
+  habis: "bg-ink/5 text-ink/50",
+  dibuang: "bg-ink/5 text-ink/50",
+};
+
+export const AMBANG_KADALUARSA_HARI = 30;
+
+export type LotKadaluarsa = {
+  tanggal_kadaluarsa: string;
+  stabilitas_hari: number | null;
+  tanggal_dibuka: string | null;
+};
+
+// Kadaluarsa efektif = yang lebih awal antara kadaluarsa kemasan dan
+// (tanggal dibuka + masa stabilitas setelah dibuka).
+export function kadaluarsaEfektif(l: LotKadaluarsa): { tanggal: string; olehStabilitas: boolean } {
+  if (l.stabilitas_hari && l.tanggal_dibuka) {
+    const habisStabil = geserHari(l.tanggal_dibuka, l.stabilitas_hari);
+    if (habisStabil < l.tanggal_kadaluarsa) return { tanggal: habisStabil, olehStabilitas: true };
+  }
+  return { tanggal: l.tanggal_kadaluarsa, olehStabilitas: false };
+}
+
+export function statusKadaluarsa(
+  tanggal: string,
+  hariIni: string,
+): { status: "kadaluarsa" | "segera" | "aman"; sisaHari: number } {
+  const sisa = selisihHari(hariIni, tanggal);
+  if (sisa < 0) return { status: "kadaluarsa", sisaHari: sisa };
+  if (sisa <= AMBANG_KADALUARSA_HARI) return { status: "segera", sisaHari: sisa };
+  return { status: "aman", sisaHari: sisa };
+}
+
+export const WARNA_STATUS_KADALUARSA: Record<"kadaluarsa" | "segera" | "aman", string> = {
+  kadaluarsa: "bg-red-600 text-white",
+  segera: "bg-clay-600/10 text-clay-700",
+  aman: "bg-teal-700/10 text-teal-700",
+};
