@@ -36,6 +36,28 @@ export const KATEGORI_LAB = [
   "Lainnya",
 ];
 
+export const ALASAN_TOLAK_SAMPEL = [
+  "Sampel hemolisis",
+  "Volume sampel kurang",
+  "Sampel lipemik / ikterik",
+  "Wadah atau tabung tidak sesuai",
+  "Identitas / label tidak sesuai",
+  "Sampel terlalu lama atau rusak",
+  "Lainnya",
+];
+
+export const STATUS_QC: Record<string, string> = {
+  dalam_kendali: "Dalam kendali",
+  peringatan: "Peringatan (>2 SD)",
+  ditolak: "Ditolak (>3 SD)",
+};
+
+export const WARNA_STATUS_QC: Record<string, string> = {
+  dalam_kendali: "bg-teal-700/10 text-teal-700",
+  peringatan: "bg-clay-600/10 text-clay-700",
+  ditolak: "bg-red-600 text-white",
+};
+
 export const STATUS_RUJUKAN_LAB: Record<string, string> = {
   dikirim: "Dikirim, menunggu hasil",
   hasil_diterima: "Hasil diterima",

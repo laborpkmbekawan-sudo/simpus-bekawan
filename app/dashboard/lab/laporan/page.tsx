@@ -180,6 +180,26 @@ export default async function HalamanLaporanLab({
   const permintaanKritis = daftar.filter((p) => p.status !== "dibatalkan" && p.items.some((i) => !i.dibatalkan && i.hasil.some((h) => h.kritis)));
   const kritisBelumLapor = permintaanKritis.filter((p) => !p.kritis_dilaporkan_pada).length;
 
+  // FITUR 9 & 10 -- penolakan sampel dan ringkasan QC pada periode. Galat diabaikan
+  // (mis. migrasi 47 belum jalan) supaya laporan utama tetap tampil.
+  const [{ data: tolakMentah }, { data: qcMentah }] = await Promise.all([
+    supabase
+      .from("lab_penolakan_sampel")
+      .select("alasan")
+      .gte("ditolak_pada", awalHariWib(dari))
+      .lte("ditolak_pada", akhirHariWib(sampai))
+      .range(0, 4999),
+    supabase.from("lab_qc_hasil").select("status").gte("tanggal", dari).lte("tanggal", sampai).range(0, 4999),
+  ]);
+  const perAlasanTolak = new Map<string, number>();
+  for (const t of (tolakMentah ?? []) as { alasan: string }[]) {
+    perAlasanTolak.set(t.alasan, (perAlasanTolak.get(t.alasan) ?? 0) + 1);
+  }
+  const rekapTolak = [...perAlasanTolak.entries()].sort((a, b) => b[1] - a[1]);
+  const totalTolak = rekapTolak.reduce((t, [, n]) => t + n, 0);
+  const qcPeriode = (qcMentah ?? []) as { status: string }[];
+  const qcPerStatus = (st: string) => qcPeriode.filter((q) => q.status === st).length;
+
   const terpotong = daftar.length >= BATAS_BARIS;
 
   return (
@@ -275,6 +295,43 @@ export default async function HalamanLaporanLab({
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-ink/45">Penolakan sampel ({totalTolak})</h2>
+        <div className="flex flex-wrap gap-2">
+          {rekapTolak.map(([alasan, n]) => (
+            <span key={alasan} className="rounded-sm bg-clay-600/10 px-3 py-1.5 text-xs font-semibold text-clay-700">
+              {alasan}: {n}
+            </span>
+          ))}
+          {rekapTolak.length === 0 && <span className="text-sm text-ink/45">Tidak ada sampel ditolak pada periode ini.</span>}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-ink/45">Kontrol mutu (QC) pada periode</h2>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-sm bg-teal-700/10 px-3 py-1.5 text-xs font-semibold text-teal-700">
+            Dalam kendali: {qcPerStatus("dalam_kendali")}
+          </span>
+          <span className="rounded-sm bg-clay-600/10 px-3 py-1.5 text-xs font-semibold text-clay-700">
+            Peringatan: {qcPerStatus("peringatan")}
+          </span>
+          <span
+            className={`rounded-sm px-3 py-1.5 text-xs font-semibold ${
+              qcPerStatus("ditolak") > 0 ? "bg-red-600 text-white" : "bg-ink/5 text-ink/60"
+            }`}
+          >
+            Ditolak: {qcPerStatus("ditolak")}
+          </span>
+          <Link
+            href="/dashboard/lab/qc"
+            className="rounded-sm border border-sand-100 px-3 py-1.5 text-xs font-semibold text-teal-700 print:hidden"
+          >
+            Buka Kontrol Mutu →
+          </Link>
         </div>
       </section>
 

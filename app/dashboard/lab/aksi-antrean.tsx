@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { batalkanPermintaanLabAction, terimaSampelAction } from "./actions";
+import TolakSampel from "./tolak-sampel";
 
 function Tombol({ label, warna }: { label: string; warna: "utama" | "bahaya" }) {
   const { pending } = useFormStatus();
@@ -43,6 +44,7 @@ export default function AksiAntreanLab({ id, status, bisaLab = true }: { id: str
             {status === "proses" ? "Lanjut input hasil" : "Input hasil"}
           </Link>
         )}
+        {bisaLab && (status === "sampel_diterima" || status === "proses") && <TolakSampel id={id} />}
         {(bisaLab ? status === "diminta" || status === "sampel_diterima" || status === "proses" : status === "diminta") && (
           <form
             action={aksiBatal}

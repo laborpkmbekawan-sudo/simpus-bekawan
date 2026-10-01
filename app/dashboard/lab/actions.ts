@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
+import { hariIniWib } from "@/lib/format";
 import { PERAN_LAB, PERAN_MINTA_LAB, hitungFlag, hitungKritis, teksRujukan, type ParameterLab } from "@/lib/lab";
 
 type Hasil = { pesan: string; sukses: boolean };
@@ -747,4 +748,140 @@ export async function batalkanRujukanKeluarAction(_sebelum: Hasil | null, formDa
   revalidatePath(`/dashboard/lab/hasil/${r.permintaan_id}`);
   segarkan();
   return { pesan: "Rujukan dibatalkan.", sukses: true };
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 9 -- Penolakan sampel
+// ---------------------------------------------------------------------------
+
+export async function tolakSampelAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh menolak sampel.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const alasan = String(formData.get("alasan") ?? "").trim();
+  const catatan = String(formData.get("catatan") ?? "").trim();
+  if (!id) return { pesan: "Permintaan gak ditemukan.", sukses: false };
+  if (!alasan) return { pesan: "Pilih alasan penolakan.", sukses: false };
+
+  const supabase = createClient();
+  const { data: p } = await supabase.from("lab_permintaan").select("kunjungan_id").eq("id", id).maybeSingle();
+
+  const { data: dihapus, error } = await supabase.rpc("lab_tolak_sampel", {
+    p_permintaan_id: id,
+    p_alasan: alasan,
+    p_catatan: catatan || null,
+  });
+  if (error) {
+    return {
+      pesan: `Gagal menolak sampel: ${error.message}${error.message.includes("lab_tolak_sampel") ? ". Pastikan migrasi_tahap_47.sql sudah dijalankan." : ""}`,
+      sukses: false,
+    };
+  }
+
+  segarkan();
+  revalidatePath(`/dashboard/lab/hasil/${id}`);
+  revalidatePath("/dashboard/lab/laporan");
+  if (p?.kunjungan_id) revalidatePath(`/dashboard/pelayanan/${p.kunjungan_id}`);
+  const n = Number(dihapus ?? 0);
+  return {
+    pesan: `Sampel ditolak. Permintaan kembali ke Menunggu Lab${n > 0 ? `, ${n} hasil draft dihapus` : ""}.`,
+    sukses: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// FITUR 10 -- Kontrol mutu (QC) harian
+// ---------------------------------------------------------------------------
+
+export async function tambahKontrolQcAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh menambah bahan kontrol.", sukses: false };
+  }
+  const nama = String(formData.get("nama") ?? "").trim();
+  const parameterId = String(formData.get("parameter_id") ?? "").trim();
+  const level = String(formData.get("level") ?? "").trim();
+  const lot = String(formData.get("lot") ?? "").trim();
+  const satuan = String(formData.get("satuan") ?? "").trim();
+  const target = angkaAtauNull(String(formData.get("target") ?? ""));
+  const sd = angkaAtauNull(String(formData.get("sd") ?? ""));
+
+  if (!nama) return { pesan: "Nama bahan kontrol wajib diisi.", sukses: false };
+  if (target == null) return { pesan: "Target (rata-rata) harus berupa angka.", sukses: false };
+  if (sd == null || sd <= 0) return { pesan: "SD harus berupa angka lebih dari 0.", sukses: false };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_qc_kontrol").insert({
+    nama,
+    parameter_id: parameterId || null,
+    level: level || null,
+    lot: lot || null,
+    satuan: satuan || null,
+    target,
+    sd,
+  });
+  if (error) {
+    return { pesan: `Gagal simpan: ${error.message}${error.message.includes("lab_qc_kontrol") ? ". Pastikan migrasi_tahap_47.sql sudah dijalankan." : ""}`, sukses: false };
+  }
+
+  revalidatePath("/dashboard/lab/qc");
+  return { pesan: `Bahan kontrol "${nama}" ditambahkan.`, sukses: true };
+}
+
+export async function catatQcAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh mencatat QC.", sukses: false };
+  }
+  const kontrolId = String(formData.get("kontrol_id") ?? "");
+  const nilai = angkaAtauNull(String(formData.get("nilai") ?? ""));
+  const catatan = String(formData.get("catatan") ?? "").trim();
+  if (!kontrolId) return { pesan: "Bahan kontrol gak ditemukan.", sukses: false };
+  if (nilai == null) return { pesan: "Nilai QC harus berupa angka.", sukses: false };
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lab_qc_hasil")
+    .insert({
+      kontrol_id: kontrolId,
+      tanggal: hariIniWib(),
+      nilai,
+      catatan: catatan || null,
+      dicatat_oleh: pemanggil.id,
+      dicatat_oleh_nama: pemanggil.nama_lengkap,
+    })
+    .select("status, z")
+    .single();
+  if (error || !data) return { pesan: `Gagal simpan QC: ${error?.message}`, sukses: false };
+
+  revalidatePath("/dashboard/lab/qc");
+  revalidatePath("/dashboard/lab/laporan");
+  const z = Number(data.z);
+  const teksZ = `${z > 0 ? "+" : ""}${String(z).replace(".", ",")} SD`;
+  if (data.status === "ditolak") {
+    return { pesan: `QC DITOLAK (${teksZ}). Jangan validasi hasil pasien sebelum alat/reagen dicek dan QC diulang.`, sukses: false };
+  }
+  if (data.status === "peringatan") {
+    return { pesan: `QC tercatat dengan peringatan (${teksZ}). Pantau dan pertimbangkan mengulang.`, sukses: true };
+  }
+  return { pesan: `QC tercatat, dalam kendali (${teksZ}).`, sukses: true };
+}
+
+export async function ubahAktifKontrolQcAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh ubah bahan kontrol.", sukses: false };
+  }
+  const id = String(formData.get("id") ?? "");
+  const aktif = String(formData.get("aktif") ?? "") === "true";
+  if (!id) return { pesan: "Bahan kontrol gak ditemukan.", sukses: false };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("lab_qc_kontrol").update({ aktif }).eq("id", id);
+  if (error) return { pesan: `Gagal ubah: ${error.message}`, sukses: false };
+
+  revalidatePath("/dashboard/lab/qc");
+  return { pesan: aktif ? "Bahan kontrol diaktifkan." : "Bahan kontrol dinonaktifkan.", sukses: true };
 }

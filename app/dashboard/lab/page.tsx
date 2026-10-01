@@ -15,6 +15,8 @@ type Permintaan = {
   diminta_oleh_nama: string | null;
   diminta_pada: string;
   divalidasi_pada: string | null;
+  jumlah_tolak: number | null;
+  sampel_ditolak_alasan: string | null;
   kunjungan: {
     nomor_antrian: number;
     pasien: { nama_lengkap: string; no_rm: string; jenis_kelamin: string | null; tanggal_lahir: string | null } | null;
@@ -24,7 +26,7 @@ type Permintaan = {
 };
 
 const SELECT_PERMINTAAN = `
-  id, no_lab, status, prioritas, diagnosis_kerja, catatan_klinis, diminta_oleh_nama, diminta_pada, divalidasi_pada,
+  id, no_lab, status, prioritas, diagnosis_kerja, catatan_klinis, diminta_oleh_nama, diminta_pada, divalidasi_pada, jumlah_tolak, sampel_ditolak_alasan,
   kunjungan:kunjungan_id (
     nomor_antrian,
     pasien:pasien_id (nama_lengkap, no_rm, jenis_kelamin, tanggal_lahir),
@@ -73,6 +75,13 @@ function Kartu({ p }: { p: Permintaan }) {
           <PilStatusLab status={p.status} />
         </div>
       </div>
+
+      {p.status === "diminta" && (p.jumlah_tolak ?? 0) > 0 && (
+        <p className="mt-3 rounded-sm bg-clay-600/10 px-3 py-2 text-xs text-clay-700">
+          <span className="font-bold">Sampel sebelumnya ditolak</span>
+          {p.sampel_ditolak_alasan ? `: ${p.sampel_ditolak_alasan}` : ""}. Menunggu sampel baru dari klaster.
+        </p>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {item.map((i) => (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient, getPegawaiSaya, getKodeAksesSaya, punyaAkses } from "@/lib/supabase/server";
 import { PERAN_LAB, umurTahun, type ParameterLab } from "@/lib/lab";
+import { hariIniWib } from "@/lib/format";
 import FormHasilLab, { type ItemForm } from "./form-hasil";
 import FormRujukKeluar from "./form-rujuk-keluar";
 import { PelacakLab, PilPrioritasLab } from "../komponen";
@@ -109,6 +110,42 @@ export default async function HalamanInputHasilLab({ params }: { params: { id: s
       };
     });
 
+  // Peringatan QC hari ini untuk parameter di permintaan ini. Tidak memblokir;
+  // galat (mis. migrasi 47 belum jalan) diabaikan supaya input hasil tetap jalan.
+  const idParameter = ((itemMentah ?? []) as unknown as ItemDb[])
+    .filter((i) => !i.dibatalkan && i.pemeriksaan)
+    .flatMap((i) => i.pemeriksaan!.parameter.map((par) => par.id));
+  const peringatanQc: { nama: string; jenis: "ditolak" | "peringatan" | "belum" }[] = [];
+  if (idParameter.length > 0) {
+    const { data: kontrolQc } = await supabase
+      .from("lab_qc_kontrol")
+      .select("id, nama")
+      .eq("aktif", true)
+      .in("parameter_id", idParameter);
+    const daftarQc = (kontrolQc ?? []) as { id: string; nama: string }[];
+    if (daftarQc.length > 0) {
+      const { data: hariIniQc } = await supabase
+        .from("lab_qc_hasil")
+        .select("kontrol_id, status, dicatat_pada")
+        .eq("tanggal", hariIniWib())
+        .in("kontrol_id", daftarQc.map((k) => k.id))
+        .order("dicatat_pada", { ascending: false });
+      const terbaru = new Map<string, string>();
+      for (const h of (hariIniQc ?? []) as { kontrol_id: string; status: string }[]) {
+        if (!terbaru.has(h.kontrol_id)) terbaru.set(h.kontrol_id, h.status);
+      }
+      for (const k of daftarQc) {
+        const st = terbaru.get(k.id);
+        if (!st) peringatanQc.push({ nama: k.nama, jenis: "belum" });
+        else if (st === "ditolak") peringatanQc.push({ nama: k.nama, jenis: "ditolak" });
+        else if (st === "peringatan") peringatanQc.push({ nama: k.nama, jenis: "peringatan" });
+      }
+    }
+  }
+  const qcDitolak = peringatanQc.filter((x) => x.jenis === "ditolak").map((x) => x.nama);
+  const qcPeringatan = peringatanQc.filter((x) => x.jenis === "peringatan").map((x) => x.nama);
+  const qcBelum = peringatanQc.filter((x) => x.jenis === "belum").map((x) => x.nama);
+
   return (
     <div className="space-y-6">
       <div>
@@ -121,6 +158,26 @@ export default async function HalamanInputHasilLab({ params }: { params: { id: s
           {p.diminta_oleh_nama ? ` · ${p.diminta_oleh_nama}` : ""}
         </p>
       </div>
+
+      {qcDitolak.length > 0 && (
+        <div role="alert" className="rounded-sm border border-red-600/30 bg-red-600/10 px-4 py-3 text-sm text-red-700">
+          <p className="font-bold">⚠ QC hari ini DITOLAK: {qcDitolak.join(", ")}</p>
+          <p className="mt-0.5 text-xs">Cek alat/reagen dan ulang QC sebelum memvalidasi hasil pasien.</p>
+        </div>
+      )}
+      {qcPeringatan.length > 0 && (
+        <div className="rounded-sm border border-clay-600/30 bg-clay-600/10 px-4 py-3 text-sm text-clay-700">
+          QC hari ini peringatan (&gt;2 SD): {qcPeringatan.join(", ")}.
+        </div>
+      )}
+      {qcBelum.length > 0 && (
+        <div className="rounded-sm border border-sand-100 bg-sand-50 px-4 py-3 text-sm text-ink/70">
+          Belum ada QC hari ini untuk: {qcBelum.join(", ")}.{" "}
+          <Link href="/dashboard/lab/qc" className="font-semibold text-teal-700 underline decoration-teal-700/30 underline-offset-2">
+            Catat QC
+          </Link>
+        </div>
+      )}
 
       <section className="space-y-3 rounded-card border border-sand-100 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

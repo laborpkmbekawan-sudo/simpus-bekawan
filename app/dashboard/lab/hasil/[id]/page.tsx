@@ -32,6 +32,7 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
     .select(
       `id, no_lab, status, prioritas, diagnosis_kerja, catatan_klinis, catatan_validasi, alasan_batal,
        diminta_oleh, diminta_oleh_nama, diminta_pada, sampel_diterima_pada, divalidasi_oleh_nama, divalidasi_pada, hasil_dilihat_pada,
+       jumlah_tolak, sampel_ditolak_alasan,
        kritis_dilaporkan_pada, kritis_dilaporkan_ke, kritis_dilaporkan_oleh_nama, kritis_catatan,
        kunjungan:kunjungan_id (
          id,
@@ -42,6 +43,19 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
     .eq("id", params.id)
     .maybeSingle();
   if (!p) notFound();
+
+  const { data: tolakMentah } = await supabase
+    .from("lab_penolakan_sampel")
+    .select("id, alasan, catatan, ditolak_oleh_nama, ditolak_pada")
+    .eq("permintaan_id", p.id)
+    .order("ditolak_pada", { ascending: false });
+  const riwayatTolak = (tolakMentah ?? []) as {
+    id: string;
+    alasan: string;
+    catatan: string | null;
+    ditolak_oleh_nama: string | null;
+    ditolak_pada: string;
+  }[];
 
   const { data: rujukanMentah } = await supabase
     .from("lab_rujukan_keluar")
@@ -176,6 +190,24 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
             )}
           </div>
         ))}
+
+      {riwayatTolak.length > 0 && (
+        <section className="space-y-2 rounded-card border border-clay-600/30 bg-clay-600/5 p-5">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-clay-700">
+            Sampel pernah ditolak ({riwayatTolak.length}x)
+          </h2>
+          {p.status === "diminta" && (
+            <p className="text-sm font-semibold text-red-600">Menunggu sampel baru dari klaster peminta.</p>
+          )}
+          {riwayatTolak.map((t) => (
+            <p key={t.id} className="text-sm text-ink/80">
+              {waktuWib(t.ditolak_pada)} · <span className="font-semibold">{t.alasan}</span>
+              {t.catatan ? ` — ${t.catatan}` : ""}
+              {t.ditolak_oleh_nama ? <span className="text-ink/45"> ({t.ditolak_oleh_nama})</span> : null}
+            </p>
+          ))}
+        </section>
+      )}
 
       {rujukan.length > 0 && (
         <section className="space-y-3 rounded-card border border-sand-100 bg-white p-5">

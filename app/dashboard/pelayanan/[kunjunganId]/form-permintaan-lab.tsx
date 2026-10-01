@@ -27,6 +27,8 @@ export type PermintaanLabTercatat = {
   diminta_pada: string;
   diminta_oleh: string | null;
   hasil_dilihat_pada: string | null;
+  jumlah_tolak?: number | null;
+  sampel_ditolak_alasan?: string | null;
   items: { id: string; dibatalkan: boolean; pemeriksaan: { nama: string } | null; hasil: ItemHasil["hasil"] }[];
 };
 
@@ -233,6 +235,12 @@ export default function FormPermintaanLab({
                   </div>
                 </div>
                 <PelacakLab status={p.status} />
+                {p.status === "diminta" && (p.jumlah_tolak ?? 0) > 0 && (
+                  <p role="alert" className="rounded-sm bg-red-500/10 px-3.5 py-2.5 text-sm text-red-600">
+                    <span className="font-bold">Sampel ditolak Lab</span>
+                    {p.sampel_ditolak_alasan ? `: ${p.sampel_ditolak_alasan}` : ""}. Mohon ambil sampel ulang dan antar ke Lab.
+                  </p>
+                )}
                 {p.status === "selesai" && (
                   <>
                     <TabelHasilLab items={item.map((i) => ({ id: i.id, nama: i.pemeriksaan?.nama ?? "—", hasil: i.hasil }))} />

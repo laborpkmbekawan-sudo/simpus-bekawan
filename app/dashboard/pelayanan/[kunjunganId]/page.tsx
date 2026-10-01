@@ -384,7 +384,7 @@ export default async function HalamanPelayanan({ params }: { params: { kunjungan
     supabase
       .from("lab_permintaan")
       .select(
-        "id, no_lab, status, prioritas, diminta_pada, diminta_oleh, hasil_dilihat_pada, items:lab_permintaan_item (id, dibatalkan, pemeriksaan:pemeriksaan_id (nama), hasil:lab_hasil (id, nama_parameter, satuan, rujukan_teks, nilai, flag, catatan, parameter:parameter_id (urutan)))"
+        "id, no_lab, status, prioritas, diminta_pada, diminta_oleh, hasil_dilihat_pada, jumlah_tolak, sampel_ditolak_alasan, items:lab_permintaan_item (id, dibatalkan, pemeriksaan:pemeriksaan_id (nama), hasil:lab_hasil (id, nama_parameter, satuan, rujukan_teks, nilai, flag, catatan, parameter:parameter_id (urutan)))"
       )
       .eq("kunjungan_id", kunjungan.id)
       .order("diminta_pada", { ascending: false }),
