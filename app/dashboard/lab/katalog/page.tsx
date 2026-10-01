@@ -2,6 +2,7 @@ import { createClient, getPegawaiSaya } from "@/lib/supabase/server";
 import { KATEGORI_LAB, PERAN_KLINIS_LAB, PERAN_LAB, teksRujukan, type ParameterLab } from "@/lib/lab";
 import FormTambahPemeriksaan from "./form-tambah-pemeriksaan";
 import TogglePemeriksaan from "./toggle-pemeriksaan";
+import Link from "next/link";
 import PilihTarif from "./pilih-tarif";
 import type { OpsiTarif } from "./form-tambah-pemeriksaan";
 
@@ -14,6 +15,7 @@ type Pemeriksaan = {
   aktif: boolean;
   tarif_layanan_id: string | null;
   tarif: { nama_layanan: string; harga: number } | null;
+  resep: { id: string }[] | null;
   parameter: ParameterLab[];
 };
 
@@ -40,7 +42,7 @@ export default async function HalamanKatalogLab() {
   const [{ data, error }, { data: tarifMentah }] = await Promise.all([
     supabase
     .from("lab_pemeriksaan")
-    .select("id, kode, nama, kategori, jenis_sampel, aktif, tarif_layanan_id, tarif:tarif_layanan_id (nama_layanan, harga), parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, urutan, aktif)")
+    .select("id, kode, nama, kategori, jenis_sampel, aktif, tarif_layanan_id, tarif:tarif_layanan_id (nama_layanan, harga), resep:lab_resep_bhp (id), parameter:lab_parameter (id, nama, satuan, tipe, pilihan, pilihan_normal, min_l, max_l, min_p, max_p, urutan, aktif)")
     .order("nama"),
     supabase.from("tarif_layanan").select("id, nama_layanan, harga").eq("aktif", true).order("nama_layanan"),
   ]);
@@ -50,7 +52,7 @@ export default async function HalamanKatalogLab() {
     return (
       <div className="rounded-sm border border-clay-600/20 bg-clay-600/5 px-5 py-4 text-sm text-clay-700">
         Gagal memuat katalog: {error.message}
-        {error.message.includes("lab_pemeriksaan") && " — jalankan migrasi_tahap_43.sql lalu migrasi_tahap_44.sql di Supabase dulu."}
+        {(error.message.includes("lab_pemeriksaan") || error.message.includes("lab_resep_bhp")) && " — jalankan migrasi_tahap_43, 44, dan 45 (.sql) di Supabase dulu."}
       </div>
     );
   }
@@ -107,6 +109,17 @@ export default async function HalamanKatalogLab() {
                       <div className="mt-4 rounded-sm border border-sand-100 bg-sand-50 p-3">
                         <p className="mb-2 text-xs font-bold text-ink/70">Tarif kasir (ditagihkan otomatis saat hasil divalidasi)</p>
                         <PilihTarif id={p.id} tarifId={p.tarif_layanan_id} daftarTarif={daftarTarif} />
+                        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-sand-100 pt-3">
+                          <p className="text-xs font-bold text-ink/70">
+                            Reagen & BHP: {(p.resep ?? []).length > 0 ? `${p.resep!.length} item` : "belum diatur"}
+                          </p>
+                          <Link
+                            href={`/dashboard/lab/katalog/${p.id}/bhp`}
+                            className="text-xs font-semibold text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+                          >
+                            Atur reagen & BHP
+                          </Link>
+                        </div>
                       </div>
                     )}
                     <div className="mt-4 overflow-x-auto">

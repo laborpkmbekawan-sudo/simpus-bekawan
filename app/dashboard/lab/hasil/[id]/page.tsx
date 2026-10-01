@@ -33,7 +33,7 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
        diminta_oleh, diminta_oleh_nama, diminta_pada, sampel_diterima_pada, divalidasi_oleh_nama, divalidasi_pada, hasil_dilihat_pada,
        kunjungan:kunjungan_id (
          id,
-         pasien:pasien_id (nama_lengkap, no_rm, jenis_kelamin, tanggal_lahir),
+         pasien:pasien_id (id, nama_lengkap, no_rm, jenis_kelamin, tanggal_lahir),
          klaster:klaster_tujuan_id (nama)
        )`
     )
@@ -48,7 +48,7 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
 
   const kunj = p.kunjungan as unknown as {
     id: string;
-    pasien: { nama_lengkap: string; no_rm: string; jenis_kelamin: string | null; tanggal_lahir: string | null } | null;
+    pasien: { id: string; nama_lengkap: string; no_rm: string; jenis_kelamin: string | null; tanggal_lahir: string | null } | null;
     klaster: { nama: string } | null;
   } | null;
   const pasien = kunj?.pasien;
@@ -97,6 +97,14 @@ export default async function HalamanDetailHasilLab({ params }: { params: { id: 
               No. RM {pasien?.no_rm ?? "-"} · {pasien?.jenis_kelamin === "L" ? "Laki-laki" : pasien?.jenis_kelamin === "P" ? "Perempuan" : "—"} ·{" "}
               {umurTahun(pasien?.tanggal_lahir ?? null)}
             </p>
+            {pasien?.id && (
+              <Link
+                href={`/dashboard/lab/riwayat?pasien_id=${pasien.id}`}
+                className="mt-1 inline-block text-xs font-semibold text-teal-700 underline decoration-teal-700/30 underline-offset-2"
+              >
+                Lihat riwayat & tren hasil pasien
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <PilPrioritasLab prioritas={p.prioritas} />

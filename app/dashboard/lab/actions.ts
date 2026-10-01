@@ -117,6 +117,39 @@ export async function simpanPemeriksaanAction(_sebelum: Hasil | null, formData: 
   return { pesan: `Pemeriksaan "${nama}" ditambahkan ke katalog.`, sukses: true };
 }
 
+// FITUR 5 -- resep BHP/reagen per pemeriksaan.
+export async function tambahResepBhpLabAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) {
+    return { pesan: "Cuma Lab/admin yang boleh atur BHP pemeriksaan.", sukses: false };
+  }
+  const pemeriksaanId = String(formData.get("pemeriksaan_id") ?? "");
+  const bhpId = String(formData.get("bhp_id") ?? "");
+  const jumlah = Number(String(formData.get("jumlah_default") ?? "1").replace(",", "."));
+
+  if (!pemeriksaanId || !bhpId) return { pesan: "Pilih BHP dulu.", sukses: false };
+  if (!Number.isFinite(jumlah) || jumlah <= 0) return { pesan: "Jumlah harus lebih dari 0.", sukses: false };
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("lab_resep_bhp")
+    .upsert({ pemeriksaan_id: pemeriksaanId, bhp_id: bhpId, jumlah_default: jumlah }, { onConflict: "pemeriksaan_id,bhp_id" });
+  if (error) return { pesan: `Gagal menyimpan: ${error.message}`, sukses: false };
+
+  revalidatePath(`/dashboard/lab/katalog/${pemeriksaanId}/bhp`);
+  revalidatePath("/dashboard/lab/katalog");
+  return { pesan: "BHP ditambahkan ke pemeriksaan.", sukses: true };
+}
+
+export async function hapusResepBhpLabAction(resepId: string, pemeriksaanId: string): Promise<void> {
+  const pemanggil = await getPegawaiSaya();
+  if (!pemanggil || !PERAN_LAB.includes(pemanggil.peran)) return;
+  const supabase = createClient();
+  await supabase.from("lab_resep_bhp").delete().eq("id", resepId);
+  revalidatePath(`/dashboard/lab/katalog/${pemeriksaanId}/bhp`);
+  revalidatePath("/dashboard/lab/katalog");
+}
+
 // FITUR 3 -- tautkan / lepas tarif kasir pada pemeriksaan katalog.
 export async function ubahTarifPemeriksaanAction(_sebelum: Hasil | null, formData: FormData): Promise<Hasil> {
   const pemanggil = await getPegawaiSaya();
@@ -455,28 +488,40 @@ export async function simpanHasilLabAction(_sebelum: Hasil | null, formData: For
   if (!selesai) return { pesan: "Status permintaan berubah (mungkin dibatalkan). Muat ulang halaman.", sukses: false };
 
   // FITUR 3 -- tagihkan pemeriksaan bertarif ke kasir (idempotent di database).
-  // Kegagalan tagih tidak membatalkan validasi; Lab diberi tahu supaya bisa
-  // mengecek tarif di katalog.
+  // FITUR 5 -- potong stok BHP/reagen sesuai resep pemeriksaan (idempotent).
+  // Kegagalan salah satunya tidak membatalkan validasi; Lab diberi tahu
+  // supaya bisa mengecek tarif/resep di katalog.
   const { data: jumlahTagih, error: errTagih } = await supabase.rpc("lab_tagihkan_permintaan", {
+    p_permintaan_id: permintaanId,
+  });
+  const { data: potong, error: errPotong } = await supabase.rpc("lab_potong_bhp_permintaan", {
     p_permintaan_id: permintaanId,
   });
   segarkan();
   revalidatePath(`/dashboard/pelayanan/${p.kunjungan_id}`);
   revalidatePath("/dashboard/kasir");
   revalidatePath("/dashboard/lab/laporan");
+  revalidatePath("/dashboard/farmasi/bhp");
 
+  const catatan: string[] = [];
   if (errTagih) {
-    return {
-      pesan: `Hasil divalidasi dan terkirim ke klaster, tapi penagihan ke kasir gagal: ${errTagih.message}. Pastikan migrasi_tahap_44.sql sudah dijalankan.`,
-      sukses: true,
-    };
+    catatan.push(`penagihan ke kasir gagal (${errTagih.message}; pastikan migrasi_tahap_44.sql sudah dijalankan)`);
+  } else {
+    const n = Number(jumlahTagih ?? 0);
+    if (n > 0) catatan.push(`${n} pemeriksaan masuk tagihan kasir`);
   }
-  const n = Number(jumlahTagih ?? 0);
+  if (errPotong) {
+    catatan.push(`pemotongan stok BHP gagal (${errPotong.message}; pastikan migrasi_tahap_45.sql sudah dijalankan)`);
+  } else {
+    const hasilPotong = (potong ?? {}) as { pemakaian?: number; kurang?: string[] };
+    if ((hasilPotong.pemakaian ?? 0) > 0) catatan.push(`stok BHP terpotong (${hasilPotong.pemakaian} pemakaian)`);
+    if ((hasilPotong.kurang ?? []).length > 0) {
+      catatan.push(`stok kurang/minus: ${(hasilPotong.kurang ?? []).join(", ")}`);
+    }
+  }
+
   return {
-    pesan:
-      n > 0
-        ? `Hasil divalidasi dan terkirim ke klaster. ${n} pemeriksaan masuk tagihan kasir.`
-        : "Hasil divalidasi dan terkirim ke klaster. Tidak ada pemeriksaan bertarif yang ditagihkan.",
+    pesan: `Hasil divalidasi dan terkirim ke klaster.${catatan.length ? ` ${catatan.join("; ")}.` : ""}`,
     sukses: true,
   };
 }

@@ -78,6 +78,7 @@ const MENU: Grup[] = [
         lencanaLab: "masuk",
       },
       { href: "/dashboard/lab/hasil", label: "Hasil Laboratorium", lencanaLab: "hasil" },
+      { href: "/dashboard/lab/riwayat", label: "Riwayat & Tren Pasien" },
       { href: "/dashboard/lab/katalog", label: "Katalog Pemeriksaan" },
       {
         href: "/dashboard/lab/laporan",

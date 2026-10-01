@@ -110,6 +110,24 @@ export default async function HalamanLaporanLab({
 
   const daftar = (data ?? []) as unknown as Baris[];
 
+  // FITUR 5 -- pemakaian BHP/reagen lab pada periode (dari mutasi stok otomatis).
+  const { data: mutasiMentah } = await supabase
+    .from("mutasi_stok_bhp")
+    .select("jumlah, bhp:bhp_id (nama_bhp, satuan)")
+    .eq("jenis", "keluar")
+    .ilike("keterangan", "Lab LAB-%")
+    .gte("dibuat_pada", awalHariWib(dari))
+    .lte("dibuat_pada", akhirHariWib(sampai))
+    .range(0, 4999);
+  const pakaiBhp = new Map<string, { nama: string; satuan: string; total: number }>();
+  for (const m of (mutasiMentah ?? []) as unknown as { jumlah: number; bhp: { nama_bhp: string; satuan: string } | null }[]) {
+    const nama = m.bhp?.nama_bhp ?? "—";
+    const x = pakaiBhp.get(nama) ?? { nama, satuan: m.bhp?.satuan ?? "", total: 0 };
+    x.total += Number(m.jumlah);
+    pakaiBhp.set(nama, x);
+  }
+  const rekapBhp = [...pakaiBhp.values()].sort((a, b) => b.total - a.total);
+
   // ---- Ringkasan ----
   const perStatus: Record<string, number> = {};
   for (const p of daftar) perStatus[p.status] = (perStatus[p.status] ?? 0) + 1;
@@ -248,6 +266,37 @@ export default async function HalamanLaporanLab({
                 <tr>
                   <td colSpan={6} className="px-4 py-6 text-center text-ink/45">
                     Belum ada pemeriksaan pada periode ini.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-ink/45">Pemakaian reagen & BHP lab</h2>
+        <div className="overflow-x-auto rounded-card border border-sand-100 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-sand-100 text-xs uppercase tracking-wide text-ink/45">
+                <th className="px-4 py-3 font-medium">BHP / reagen</th>
+                <th className="px-4 py-3 text-right font-medium">Terpakai</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rekapBhp.map((r) => (
+                <tr key={r.nama} className="border-b border-sand-100/70 last:border-0">
+                  <td className="px-4 py-2.5 font-semibold text-ink">{r.nama}</td>
+                  <td className="px-4 py-2.5 text-right text-ink">
+                    {Math.round(r.total * 100) / 100} {r.satuan}
+                  </td>
+                </tr>
+              ))}
+              {rekapBhp.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="px-4 py-6 text-center text-ink/45">
+                    Belum ada pemakaian BHP lab tercatat pada periode ini.
                   </td>
                 </tr>
               )}
